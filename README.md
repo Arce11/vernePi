@@ -20,10 +20,10 @@ OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la 
 
 --- En el IDE (Aquí instrucciones para PyCharm) ---
 1. Configurar Git en el IDE. En PyCharm se llama VCS (Version Control System (?)):
-  1. Con proyecto previamente abierto: File->Settings->Version Control
+   1. Con proyecto previamente abierto: File->Settings->Version Control
        Sin proyecto abierto: Configure->Settings->Version Control
-  1. Git->  Aquí seleccionamos la ubicación del git.exe descargado antes
-  1. GitHub->  Añadimos nuestra cuenta de GitHub
+   1. Git->  Aquí seleccionamos la ubicación del git.exe descargado antes
+   1. GitHub->  Añadimos nuestra cuenta de GitHub
 2) Si teníamos un proyecto abierto, lo cerramos. Cargamos el repositorio con "Check out from Version Control"->"Git" (URL: https://github.com/Arce11/vernePi.git )
 3) Definimos el entorno de despliegue remoto
   3.1) Tools->Deployment->Configuration
