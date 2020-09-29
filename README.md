@@ -1,6 +1,6 @@
 # Proyecto vernePi
 
-# Instrucciones
+# Instrucciones (IDE)
 OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la Raspberry automáticamente (para no tener que transferir el código a pelo con cada cambio para ejecutar y probar). Por poder, se puede instalar un IDE directamente en la raspberry y desarrollar ahí directamente, sincronizando con el repositorio y usándola como un PC al uso, pero no sé si irá algo petado...
 
 --- En la Raspberry Pi ---
@@ -42,6 +42,9 @@ OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la 
    1. Seleccionamos en "Script Path" el archivo que esa configuración lanzará (podemos tener una config. principal que apunte a un "main.py", y otra para probar cosillas rápidas que apunte a un "test.py", por ej.)
    1. Verificamos que en "Python Interpreter" está el "Remote Python" configurado antes
 
+--- De vuelta en la Raspberry (OJO: tanto si se está usando el montaje descrito con Pycharm+Windows como si se está clonando el repositorio directamente en la raspi) ---
+1. Se activa el entorno virtual (desde la carpeta de proyecto, o donde esté el entorno virtual): source venv/bin/activate
+1. Se instalan las dependencias: pip install -r requirements.txt
 
 Con todo esto y si se alinean los astros, deberíamos poder darle al típico botón de "Run" y ver la salida por consola en Windows, pero estar ejecutándolo en la raspi. Al ser por consola SSH, no sé hasta qué punto podremos controlar la raspi (GPIO, etc.), y definitivamente esto no vale si tenemos algún tipo de GUI. En ese caso, habría que en vez de darle a "Run", ir a la raspi por putty (si no hay GUI) o VNC y lanzar el script desde ahí. Los archivos se sincronizarían automáticamente, por lo que debería ser casi igual de cómodo.
   OJO: recordar para ejecutar desde la raspi el "source venv/bin/activate" y el "deactivate" para (des)activar el entorno virtual de python.
