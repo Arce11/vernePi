@@ -4,26 +4,26 @@
 OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la Raspberry automáticamente (para no tener que transferir el código a pelo con cada cambio para ejecutar y probar). Por poder, se puede instalar un IDE directamente en la raspberry y desarrollar ahí directamente, sincronizando con el repositorio y usándola como un PC al uso, pero no sé si irá algo petado...
 
 --- En la Raspberry Pi ---
-1) Crear carpeta para el repositorio en la raspberry
+1. Crear carpeta para el repositorio en la raspberry
   mkdir vernePi
   cd vernePi
-2) Comprobar versión de Python 3 incluida:
+2. Comprobar versión de Python 3 incluida:
   python3 --version
-3) Si es 3.7.X debería valer. Si no, instalar la última (y crear el entorno del paso 4 usando python3.7 en vez de python3):
+3. Si es 3.7.X debería valer. Si no, instalar la última (y crear el entorno del paso 4 usando python3.7 en vez de python3):
   sudo apt-get install python3.7
-4) Crear entorno virtual para instalar todo lo que vaya surgiendo, si surge. Guardarlo en carpeta venv para que el .gitignore la pille y no se suba al Git:
+4. Crear entorno virtual para instalar todo lo que vaya surgiendo, si surge. Guardarlo en carpeta venv para que el .gitignore la pille y no se suba al Git:
   python3 -m venv venv
   
 --- En Windows ---
-1) Instalar Git
-2) Instalar IDE. Recomiendo PyCharm (creo que versión Pro está disponible con Uniovi, no sé si directamente o a través del pack de estudiante de GitHub), aunque otro debería valer en principio
+1. Instalar Git
+2. Instalar IDE. Recomiendo PyCharm (creo que versión Pro está disponible con Uniovi, no sé si directamente o a través del pack de estudiante de GitHub), aunque otro debería valer en principio
 
 --- En el IDE (Aquí instrucciones para PyCharm) ---
-1) Configurar Git en el IDE. En PyCharm se llama VCS (Version Control System (?)):
-  1.1) Con proyecto previamente abierto: File->Settings->Version Control
+1. Configurar Git en el IDE. En PyCharm se llama VCS (Version Control System (?)):
+  1. Con proyecto previamente abierto: File->Settings->Version Control
        Sin proyecto abierto: Configure->Settings->Version Control
-  1.2) Git->  Aquí seleccionamos la ubicación del git.exe descargado antes
-  1.3) GitHub->  Añadimos nuestra cuenta de GitHub
+  1. Git->  Aquí seleccionamos la ubicación del git.exe descargado antes
+  1. GitHub->  Añadimos nuestra cuenta de GitHub
 2) Si teníamos un proyecto abierto, lo cerramos. Cargamos el repositorio con "Check out from Version Control"->"Git" (URL: https://github.com/Arce11/vernePi.git )
 3) Definimos el entorno de despliegue remoto
   3.1) Tools->Deployment->Configuration
