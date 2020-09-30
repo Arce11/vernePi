@@ -15,19 +15,20 @@ OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la 
    1. python3 -m venv venv
   
 --- En Windows ---
-1. Instalar Git
+1. Instalar Git (NOTA: Si se va a utilizar PyCharm como IDE, da la opción de descargarlo automáticamente desde ahí al no detectarlo instalado)
 2. Instalar IDE. Recomiendo PyCharm (creo que versión Pro está disponible con Uniovi, no sé si directamente o a través del pack de estudiante de GitHub), aunque otro debería valer en principio
 
 --- En el IDE (Aquí instrucciones para PyCharm) ---
-1. Configurar Git en el IDE. En PyCharm se llama VCS (Version Control System (?)):
+1. Configurar Git en el IDE. En PyCharm se llama VCS (Version Control System). Se puede hacer con estos pasos dedicados, o de la que se hace "check out" en el siguiente paso (se clona y sincroniza repositorio):
    1. Con proyecto previamente abierto: File->Settings->Version Control
-     1. Sin proyecto abierto: Configure->Settings->Version Control
+   1. Sin proyecto abierto: Configure->Settings->Version Control
    1. Git->  Aquí seleccionamos la ubicación del git.exe descargado antes
    1. GitHub->  Añadimos nuestra cuenta de GitHub
 1. Si teníamos un proyecto abierto, lo cerramos. Cargamos el repositorio con "Check out from Version Control"->"Git" (URL: https://github.com/Arce11/vernePi.git )
 1. Definimos el entorno de despliegue remoto
    1. Tools->Deployment->Configuration
    1. "+"->SFTP, Nombre de servidor: El que queramos (sólo para identificar la configuración)
+   1. Si no aparecen campos "host", "usuario", etc. hay que darle a "SSH Configurations" y crear una. Pueden también salir estos campos directamente en la configuración del server SFTP, depende de la versión de PyCharm creo
    1. Host: dirección de la raspberry (raspberrypi por defecto, aunque puede interesar cambiarla...), Username: pi (por defecto), Password: raspberry (por defecto), tick en "Save password"
    1. Antes de darle a "OK", arriba vamos a la segunda pestaña ("Mappings")
    1. Local path: dirección del proyecto de PyCharm, Deployment Path: dirección de la carpeta donde queremos que se sincronicen los archivo
@@ -36,6 +37,9 @@ OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la 
 1. Definimos el intérprete del proyecto como el de la propia raspberry. Podríamos usar uno local para ir empezando y ejecutar las cosas complicadas directamente por putty/escritorio remoto en la raspberry, pero eso daría problemas de detección de errores y de librerías no encontradas (como las del GPIO de la raspi)
    1. File->Settings->Project: <nombre de proyecto>->Project Interpreter-> "Icono de engranaje" -> Add
    1. SSH Interpreter->Existing server configuration-> Seleccionamos la configuración de "deployment" que definimos antes
+   1. Probablemente el intérprete seleccionado por defecto sea el python global del sistema. Lo cambiamos para que sea el del venv creado (seleccionamos el archivo de ...venv/bin/python)
+   1. Por si acaso, marcamos la casilla de ejecutar el intérprete como administrador (usando "sudo"), puede ser necesario para algunas cosas
+   1. Cambiamos también la carpeta en la que se ejecutará el código de la temporal por defecto (creada sobre la marcha para cada ejecución) a la del proyecto en la raspberry que seleccionamos antes para que se sincronicen en ella los archivos. No estoy seguro si al estar los archivos ya sincronizados a través de "deployment" los intentará mover de nuevo, quiero creer que será inteligente y no.
 1. Añadimos una configuración de ejecución para que sepa qué archivo lanzar y con qué intérprete (puede haber varios por proyecto):
    1. Arriba a la derecha damos a "Edit Configurations"
    1. "+"->Python
