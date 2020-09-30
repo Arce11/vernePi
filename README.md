@@ -1,18 +1,18 @@
 # Proyecto vernePi
 
 # Instrucciones (IDE)
-OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la Raspberry automáticamente (para no tener que transferir el código a pelo con cada cambio para ejecutar y probar). Por poder, se puede instalar un IDE directamente en la raspberry y desarrollar ahí directamente, sincronizando con el repositorio y usándola como un PC al uso, pero no sé si irá algo petado...
+OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la Raspberry automáticamente (para no tener que transferir el código a pelo con cada cambio para ejecutar y probar). Por poder, se puede instalar un IDE en la raspberry y desarrollar ahí directamente, sincronizando con el repositorio y usándola como un PC corriente, pero no sé si irá algo lento...
 
 --- En la Raspberry Pi ---
 1. Crear carpeta para el repositorio en la raspberry
-  mkdir vernePi
-  cd vernePi
+   1. mkdir vernePi
+   1. cd vernePi
 2. Comprobar versión de Python 3 incluida:
-  python3 --version
+   1. python3 --version
 3. Si es 3.7.X debería valer. Si no, instalar la última (y crear el entorno del paso 4 usando python3.7 en vez de python3):
-  sudo apt-get install python3.7
+   1. sudo apt-get install python3.7
 4. Crear entorno virtual para instalar todo lo que vaya surgiendo, si surge. Guardarlo en carpeta venv para que el .gitignore la pille y no se suba al Git:
-  python3 -m venv venv
+   1. python3 -m venv venv
   
 --- En Windows ---
 1. Instalar Git
@@ -21,7 +21,7 @@ OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la 
 --- En el IDE (Aquí instrucciones para PyCharm) ---
 1. Configurar Git en el IDE. En PyCharm se llama VCS (Version Control System (?)):
    1. Con proyecto previamente abierto: File->Settings->Version Control
-       Sin proyecto abierto: Configure->Settings->Version Control
+     1. Sin proyecto abierto: Configure->Settings->Version Control
    1. Git->  Aquí seleccionamos la ubicación del git.exe descargado antes
    1. GitHub->  Añadimos nuestra cuenta de GitHub
 1. Si teníamos un proyecto abierto, lo cerramos. Cargamos el repositorio con "Check out from Version Control"->"Git" (URL: https://github.com/Arce11/vernePi.git )
