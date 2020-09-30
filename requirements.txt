@@ -1,1 +1,5 @@
-gpiozero
+colorzero==1.1
+gpiozero==1.5.1
+pigpio==1.46
+pkg-resources==0.0.0
+RPi.GPIO==0.7.0
