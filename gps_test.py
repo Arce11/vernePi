@@ -1,70 +1,36 @@
-'''
-GPS Interfacing with Raspberry Pi using Pyhton
-http://www.electronicwings.com
-'''
 import serial  # import serial package
-from time import sleep
-import webbrowser  # import package for opening link in browser
-import sys  # import system package
+import time
 
 
-def GPS_Info():
-    global NMEA_buff
-    global lat_in_degrees
-    global long_in_degrees
-    nmea_time = []
-    nmea_latitude = []
-    nmea_longitude = []
-    nmea_time = NMEA_buff[0]  # extract time from GPGGA string
-    nmea_latitude = NMEA_buff[1]  # extract latitude from GPGGA string
-    nmea_longitude = NMEA_buff[3]  # extract longitude from GPGGA string
+def parse_line(line):
+    parts = line.split(",")
+    if parts[0] != "$GPGGA":  # Only GPGGA messages are of interest (for now). Check: http://aprs.gids.nl/nmea/
+        return
 
-    print("NMEA Time: ", nmea_time, '\n')
-    print("NMEA Latitude:", nmea_latitude, "NMEA Longitude:", nmea_longitude, '\n')
-
-    lat = float(nmea_latitude)  # convert string into float for calculation
-    longi = float(nmea_longitude)  # convertr string into float for calculation
-
-    lat_in_degrees = convert_to_degrees(lat)  # get latitude in degree decimal format
-    long_in_degrees = convert_to_degrees(longi)  # get longitude in degree decimal format
+    print("---- NEW MEASUREMENT ----")
+    print(f"Raw data: {line}")
+    print(f"Time: {parts[1][0:1]}:{parts[1][2:3]}:{parts[1][4:]}")
+    fix = parts[6] != "0"
+    if not fix:
+        print("NO LOCATION FIX")
+    else:
+        print(f"Latitude: {parts[2]} {parts[3]} \tLongitude: {parts[4]} {parts[5]}")
+    print(f"Satellites in view: {parts[7]}")
+    print("---- END OF MEASUREMENT ----")
+    print("\n\n")
+    time.sleep(1)
 
 
-# convert raw NMEA string into degree decimal format
-def convert_to_degrees(raw_value):
-    decimal_value = raw_value / 100.00
-    degrees = int(decimal_value)
-    mm_mmmm = (decimal_value - int(decimal_value)) / 0.6
-    position = degrees + mm_mmmm
-    position = "%.4f" % (position)
-    return position
-
-
-print("Starting")
-gpgga_info = "$GPGGA,"
+print("Starting - PROJECT VERNE")
 ser = serial.Serial("/dev/serial0")  # Open port with baud rate
-GPGGA_buffer = 0
-NMEA_buff = 0
-lat_in_degrees = 0
-long_in_degrees = 0
+raw_data = None
 
-print("Entering main logic")
-try:
-    while True:
-        received_data = ser.readline()  # read NMEA string received
-        print(received_data)
+while True:
+    try:
+        raw_data = ser.readline()
+        decoded_data = raw_data.decode(encoding="UTF-8")
+        parse_line(decoded_data)
+    except UnicodeDecodeError:  # I KNOW there is an error. And I want to find that sh*t
+        print(raw_data)
+        raise
 
-        GPGGA_data_available = received_data.find(gpgga_info)  # check for NMEA GPGGA string
-        if (GPGGA_data_available > 0):
-            GPGGA_buffer = received_data.split("$GPGGA,", 1)[1]  # store data coming after "$GPGGA," string
-            NMEA_buff = GPGGA_buffer.split(',')  # store comma separated data in buffer
-            GPS_Info()  # get time, latitude, longitude
-
-            print("lat in degrees:", lat_in_degrees, " long in degree: ", long_in_degrees, '\n')
-            map_link = 'http://maps.google.com/?q=' + lat_in_degrees + ',' + long_in_degrees  # create link to plot location on Google map
-            print(
-                "<<<<<<<<press ctrl+c to plot location on google maps>>>>>>\n")  # press ctrl+c to plot on map and exit
-            print("------------------------------------------------------------\n")#
-
-except KeyboardInterrupt:
-    webbrowser.open(map_link)  # open current position information in google map
-    sys.exit(0)
