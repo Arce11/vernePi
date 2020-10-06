@@ -1,5 +1,8 @@
 import gpiozero as gpio
 
+# Sends PWM signal on the MOTOR_X_FORWARD_PIN (value>0) or the MOTOR_X_BACKWARD_PIN (value<0)
+# Invalid for our use (should send PWM through MOTOR_X_ENABLE_PIN)
+
 MOTOR_R_FORWARD_PIN = 17
 MOTOR_R_BACKWARD_PIN = 18
 MOTOR_R_ENABLE_PIN = 27
