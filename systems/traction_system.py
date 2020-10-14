@@ -146,7 +146,8 @@ class Motor(SourceMixin, CompositeDevice):
 
     def idle(self):
         """
-        Stops motor action, turning off the enable (PWM) signal.
+        Stops motor action, turning off the enable (PWM) signal. Must be done
+        before turning off power to the driver.
         """
         self.value = 0
 
