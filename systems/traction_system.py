@@ -93,6 +93,14 @@ class Motor(SourceMixin, CompositeDevice):
         """
         return self.value != 0
 
+    @property
+    def is_braking(self):
+        """
+        Returns :data:`True` if the motor is currently braking
+        :data:`False` otherwise.
+        """
+        return self.backward_device.value ==0 and self.forward_device.value ==0
+
     def forward(self, speed=1):
         """
         Drive the motor forwards.
@@ -152,6 +160,188 @@ class Motor(SourceMixin, CompositeDevice):
         self.value = 0
 
 
+
+class TractionSystem:
+    """
+    :type forward_r: int or str
+    :param forward_r:
+        The GPIO pin that the forward input of the right motor driver chip is
+        connected to. See :ref:`pin-numbering` for valid pin numbers. If this
+        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+
+    :type backward_r: int or str
+    :param backward_r:
+        The GPIO pin that the backward input of the right motor driver chip is
+        connected to. See :ref:`pin-numbering` for valid pin numbers. If this
+        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+
+    :type enable_r: int or str
+    :param forward_r:
+        The GPIO pin that the enable input of the right motor driver chip is
+        connected to. See :ref:`pin-numbering` for valid pin numbers. If this
+        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+
+    :type forward_l: int or str
+    :param forward_l:
+        The GPIO pin that the forward input of the left motor driver chip is
+        connected to. See :ref:`pin-numbering` for valid pin numbers. If this
+        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+
+    :type backward_l: int or str
+    :param backward_l:
+        The GPIO pin that the backward input of the left motor driver chip is
+        connected to. See :ref:`pin-numbering` for valid pin numbers. If this
+        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+
+    :type enable_l: int or str
+    :param forward_l:
+        The GPIO pin that the enable input of the left motor driver chip is
+        connected to. See :ref:`pin-numbering` for valid pin numbers. If this
+        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+    """
+    # Scale multipliers to compensate motor thrusts. All <=1
+    _R_FORWARD_SCALE = 0.69    # Scale to right-motor PWM when going forwards
+    _R_BACKWARD_SCALE = 0.69   # Scale to right-motor PWM when going backwards
+    _R_RIGHT_SCALE = 1      # Scale to right-motor PWM when turning right
+    _R_LEFT_SCALE = 1       # Scale to right-motor PWM when turning left (1 should be fine)
+    _L_FORWARD_SCALE = 1
+    _L_BACKWARD_SCALE = 1
+    _L_RIGHT_SCALE = 1      # (1 should be fine)
+    _L_LEFT_SCALE = 1
+    FORWARD_STATE = "FORWARD"
+    BACKWARD_STATE = "BACKWARD"
+    TURN_LEFT_STATE = "TURN_LEFT"
+    TURN_RIGHT_STATE = "TURN_RIGHT"
+    STOPPED_STATE = "STOPPED"
+    IDLE_STATE = "IDLE"
+    UNKNOWN_STATE = "UNKNOWN"
+
+    def __init__(self, forward_r=None, backward_r=None, enable_r=None, forward_l=None, backward_l=None, enable_l=None):
+        required = [forward_r, backward_r, enable_r, forward_l, backward_l, enable_l]
+        if not all(p is not None for p in required):
+            raise GPIOPinMissing(
+                'enable, forward and backward pins must be provided for both motors'
+            )
+
+        self._right_motor = Motor(
+            forward=forward_r,
+            backward=backward_r,
+            enable=enable_r
+        )
+        self._left_motor = Motor(
+            forward=forward_l,
+            backward=backward_l,
+            enable=enable_l
+        )
+
+    @property
+    def is_active(self):
+        """
+        Returns :data:`True` if any motor is currently running and
+        :data:`False` otherwise.
+        """
+        return self._right_motor.value != 0 or self._left_motor.value
+
+    @property
+    def state(self):
+        """
+        Returns the current state of the traction system. Possible values:
+            "FORWARD" if both motors are going forwards
+            "BACKWARD" if both motors are going backwards
+            "TURN_LEFT" if the right motor goes forward and the left one does not
+            "TURN_RIGHT" if the left motor goes forward and the right one does not
+            "STOPPED" if both motors are stopped
+            "IDLE" if both motors are idle (disconnected)
+            "UNKNOWN" if any other (should not happen)
+        """
+        if self._right_motor.value >0 and self._left_motor.value >0:
+            return self.FORWARD_STATE
+        elif self._right_motor.value <0 and self._left_motor.value <0:
+            return self.BACKWARD_STATE
+        elif self._right_motor.value >0 and self._left_motor.value <=0:
+            return self.TURN_LEFT_STATE
+        elif self._right_motor.value <=0 and self._left_motor.value >0:
+            return self.TURN_RIGHT_STATE
+        elif self._right_motor.is_braking and self._left_motor.is_braking:
+            return self.STOPPED_STATE
+        elif not self._right_motor.is_active and not self._left_motor.is_active:
+            return self.IDLE_STATE
+        else:
+            return self.UNKNOWN_STATE
+
+
+    def forward(self, speed=1):
+        """
+        Drive the system forwards.
+
+        :param float speed:
+            The speed at which the system should move. Can be any value between
+            0 (stopped) and the default 1 (maximum speed).
+        """
+        if not 0 <= speed <= 1:
+            raise ValueError('forward speed must be between 0 and 1')
+
+        self._right_motor.forward(speed * self._R_FORWARD_SCALE)
+        self._left_motor.forward(speed * self._L_FORWARD_SCALE)
+
+
+    def backward(self, speed=1):
+        """
+        Drive the system backwards.
+
+        :param float speed:
+            The speed at which the system should move. Can be any value between
+            0 (stopped) and the default 1 (maximum speed).
+        """
+        if not 0 <= speed <= 1:
+            raise ValueError('backward speed must be between 0 and 1')
+
+        self._right_motor.backward(speed*self._R_BACKWARD_SCALE)
+        self._left_motor.backward(speed*self._L_BACKWARD_SCALE)
+
+
+    def stop(self, brake_force=1):
+        """
+        Engages system brakes, symmetrically on both motors.
+        :param float brake_force:
+            The intensity of the brakes (PWM duty). Can be any value between 0
+            (no brakes) and the default 1 (full breaks).
+        """
+        if not 0 <= brake_force <= 1:
+            raise ValueError('brake force must be between 0 and 1')
+        self._right_motor.stop(brake_force)
+        self._left_motor.stop(brake_force)
+
+    def idle(self):
+        """
+        Stops system action, turning off the enable (PWM) signals. Must be done
+        before turning off power to the driver.
+        """
+        self._right_motor.idle()
+        self._left_motor.idle()
+
+    def turn(self, direction):
+        """
+        Starts turning motion, with one motor forwards and the other backwards
+        :param float direction:
+            Between 0 and 1 for a counter-clockwise turn, and between -1 and 0
+            for a clockwise one. +-1 sets the turning speed to the maximum
+        """
+        if not -1 <= direction <= 1:
+            raise ValueError('direction')
+
+        if direction < 0:  # Clockwise (right turn)
+            self._left_motor.forward(-direction * self._L_RIGHT_SCALE)
+            self._right_motor.backward(-direction * self._R_RIGHT_SCALE)
+        else:  # Counter-clockwise (left turn)
+            self._left_motor.backward(direction * self._L_LEFT_SCALE)
+            self._right_motor.forward(direction * self._R_LEFT_SCALE)
+
+
+
+
+
+
 # Simple unit test for the traction system
 if __name__ == "__main__":
     MOTOR_R_FORWARD_PIN = 17
@@ -161,25 +351,28 @@ if __name__ == "__main__":
     MOTOR_L_BACKWARD_PIN = 24
     MOTOR_L_ENABLE_PIN = 22
 
-    motor_r = Motor(
-        forward=MOTOR_R_FORWARD_PIN,
-        backward=MOTOR_R_BACKWARD_PIN,
-        enable=MOTOR_R_ENABLE_PIN
+    tractor = TractionSystem(
+        forward_r=MOTOR_R_FORWARD_PIN,
+        backward_r=MOTOR_R_BACKWARD_PIN,
+        enable_r=MOTOR_R_ENABLE_PIN,
+        forward_l=MOTOR_L_FORWARD_PIN,
+        backward_l=MOTOR_L_BACKWARD_PIN,
+        enable_l=MOTOR_L_ENABLE_PIN
     )
 
     while True:
-        action = input("Set action: ")
+        action = input("Set action: ").upper()
         if action == "F":
-            motor_r.forward(float(input("Value: ")))
+            tractor.forward(float(input("Value: ")))
         elif action == "B":
-            motor_r.backward(float(input("Value: ")))
+            tractor.backward(float(input("Value: ")))
         elif action == "S":
-            motor_r.stop(float(input("Value: ")))
-        elif action == "R":
-            motor_r.reverse()
-        elif action == "V":
-            print(f"Current value: {motor_r.value}")
+            tractor.stop(float(input("Value: ")))
+        elif action == "I":
+            tractor.idle()
+        elif action == "T":
+            tractor.turn(float(input("Value: ")))
         else:
-            motor_r.value = float(input("Value: "))
+            print(f"Current state: {tractor.state}")
 
         print("\n")
