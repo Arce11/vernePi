@@ -2,3 +2,6 @@ gpiozero==1.5.1
 RPi.GPIO==0.7.0
 pigpio==1.46
 pyserial==3.4
+
+smbus~=1.1.post2
+pynmea2~=1.15.0
