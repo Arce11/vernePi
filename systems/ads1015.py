@@ -87,14 +87,3 @@ class ADS1015:
         code = twos_comp((reg[0] << 4)|(reg[1] >> 4), 12)
         input_voltage = code*2*voltage_reference/pow(2,12)
         return input_voltage
-
-
-DEVICE_BUS = 1
-ALERT_READY_PIN = 16
-DEVICE_ADDRESS = 0x48
-
-alert_ready = DigitalInputDevice(ALERT_READY_PIN, pull_up = True)
-bus = smbus.SMBus(DEVICE_BUS)
-adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready)
-
-print(adc.read_channel_single_shot(0, 6.144))
