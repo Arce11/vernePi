@@ -160,7 +160,6 @@ class Motor(SourceMixin, CompositeDevice):
         self.value = 0
 
 
-
 class TractionSystem:
     """
     :type forward_r: int or str
@@ -269,7 +268,6 @@ class TractionSystem:
         else:
             return self.UNKNOWN_STATE
 
-
     def forward(self, speed=1):
         """
         Drive the system forwards.
@@ -284,7 +282,6 @@ class TractionSystem:
         self._right_motor.forward(speed * self._R_FORWARD_SCALE)
         self._left_motor.forward(speed * self._L_FORWARD_SCALE)
 
-
     def backward(self, speed=1):
         """
         Drive the system backwards.
@@ -298,7 +295,6 @@ class TractionSystem:
 
         self._right_motor.backward(speed*self._R_BACKWARD_SCALE)
         self._left_motor.backward(speed*self._L_BACKWARD_SCALE)
-
 
     def stop(self, brake_force=1):
         """
@@ -336,10 +332,6 @@ class TractionSystem:
         else:  # Counter-clockwise (left turn)
             self._left_motor.backward(direction * self._L_LEFT_SCALE)
             self._right_motor.forward(direction * self._R_LEFT_SCALE)
-
-
-
-
 
 
 # Simple unit test for the traction system
