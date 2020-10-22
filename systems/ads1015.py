@@ -6,16 +6,16 @@ import time
 class ADS1015:
     # I2C interface provided by the ADS1015 (registers predefined by the datasheet):
     _CONVERSION_REGISTER = 0x00  # Result of the last conversion
-    _CONFIG_REGISTER = 0x01      # ADS1015 operating modes and query the status of the device
-    _LO_THRES_REGISTER = 0x02    # Low threshold (comparator mode)
-    _HI_THRES_REGISTER = 0x03    # High threshold (comparator mode)
+    _CONFIG_REGISTER = 0x01  # ADS1015 operating modes and query the status of the device
+    _LO_THRES_REGISTER = 0x02  # Low threshold (comparator mode)
+    _HI_THRES_REGISTER = 0x03  # High threshold (comparator mode)
     _DEFAULT_CHANNEL = 0
     _DEFAULT_DATA_RATE = 128
 
     def __init__(self, i2c_bus, address, ready):
-        self.BUS = i2c_bus                  # SMBus object (import smbus). The I2C bus connected to the device
-        self.DEVICE_ADDRESS = address       # ADS1015 address, which depends of the value of the ADDR pin
-        self.READY_PIN = ready              # DigitalInputDevice (from gpiozero). Conversion ready signal
+        self.BUS = i2c_bus  # SMBus object (import smbus). The I2C bus connected to the device
+        self.DEVICE_ADDRESS = address  # ADS1015 address, which depends of the value of the ADDR pin
+        self.READY_PIN = ready  # DigitalInputDevice (from gpiozero). Conversion ready signal
 
     @staticmethod
     def _twos_comp(val, bits):
@@ -52,13 +52,13 @@ class ADS1015:
     def _get_data_rate(i):
         # Retrieves the code of the desired data rate output
         switcher = {
-            128:    0,
-            250:    1,
-            490:    2,
-            920:    3,
-            1600:   4,  # default value
-            2400:   5,
-            3300:   6
+            128: 0,
+            250: 1,
+            490: 2,
+            920: 3,
+            1600: 4,  # default value
+            2400: 5,
+            3300: 6
         }
         return switcher.get(i)
 
@@ -152,12 +152,26 @@ class ADS1015:
         self.BUS.write_i2c_block_data(self.DEVICE_ADDRESS, self._CONFIG_REGISTER,
                                       [config_first_byte, config_second_byte])  # starting single-shot conversion
 
+    def read_single_shot_debug(self, channel, voltage_reference, data_rate):
+        self.BUS.write_i2c_block_data(self.DEVICE_ADDRESS, self._HI_THRES_REGISTER, [0xFF, 0xFF])
+        self.BUS.write_i2c_block_data(self.DEVICE_ADDRESS, self._LO_THRES_REGISTER, [0x00, 0x00])
+        mux_code = self._get_channel(channel)
+        pga_code = self._get_pga(voltage_reference)
+        data_rate_code = self._get_data_rate(data_rate)
+        config_first_byte = (1 << 7) | (mux_code << 4) | (pga_code << 1) | 1
+        config_second_byte = (data_rate_code << 5) | (0 << 4) | (1 << 3) | 0
+        self.BUS.write_i2c_block_data(self.DEVICE_ADDRESS, self._CONFIG_REGISTER,
+                                      [config_first_byte, config_second_byte])  # starting single-shot conversion
+        self.wait_ack()
+        reg = self.BUS.read_i2c_block_data(self.DEVICE_ADDRESS, self._CONVERSION_REGISTER, 2)
+        return self._data_processing(reg, voltage_reference)
+
 
 if __name__ == "__main__":
-    DEVICE_BUS = 1          # En RaspPi 3+, el bus I2C utilizado es el bus 1
-    DEVICE_ADDRESS = 0x48   # Dirección usada por el integrado ADS1015 (si ADDR = GND => dirección 0x48)
+    DEVICE_BUS = 1  # En RaspPi 3+, el bus I2C utilizado es el bus 1
+    DEVICE_ADDRESS = 0x48  # Dirección usada por el integrado ADS1015 (si ADDR = GND => dirección 0x48)
     #   (ver dirección en RaspPi con sudo i2cdetect -y <DEVICE_BUS>)
-    ALERT_READY_PIN = 16    # Pin al que está conectado el pin ALERT/READY del integrado ADS1015
+    ALERT_READY_PIN = 16  # Pin al que está conectado el pin ALERT/READY del integrado ADS1015
 
     time_inicio = time.time()
     alert_ready = DigitalInputDevice(ALERT_READY_PIN, pull_up=True)
