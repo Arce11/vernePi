@@ -16,11 +16,11 @@ async def aprint_loop():
 async def agps_loop(async_io):
     while True:
         try:
-            line = await async_io.readline()
-            t_start = time.time()
-            msg = pynmea2.parse(line.decode("UTF-8"))
-            print(f"Time: {time.time()-t_start}")
-            #print(repr(msg))
+            line = (await async_io.readline()).decode("UTF-8")
+            msg = pynmea2.parse(line)
+            print("##########################################################################")
+            print(line)
+            print(repr(msg))
         except serial.SerialException as e:
             print(f'Device error: {e}')
         except pynmea2.ParseError as e:
@@ -36,7 +36,7 @@ async def parent():
         print("Starting print loop")
         nursery.start_soon(aprint_loop)
         print("Starting GPS async serial loop")
-        a_serial.flushInput()
+        serial_port.flushInput()
         nursery.start_soon(agps_loop, a_serial)
     print("This should never be reached...")
 

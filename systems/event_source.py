@@ -66,6 +66,14 @@ class AsyncEventSource:
             self.nursery.start_soon(event_handle, self, param)
 
 
+class BaseEventArgs:
+    """
+    Class to be inherited by specialized events. To be passed as the "param" attribute in raise_event
+    """
+    def __init__(self, event_type: str):
+        self.event_type = event_type  # type: str
+
+
 if __name__ == "__main__":
     """
     Sample code. The classes here are intended to be inherited, since they do not raise any event by themselves.
