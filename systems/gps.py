@@ -63,56 +63,59 @@ class GPS(AsyncEventSource):
                     await self.raise_event(LocationEventArgs(GPS.LOCATION_EVENT, self.location))
 
             elif msg.sentence_type == "GSV":
-                try:
-                    total_msg = int(msg.num_messages)
-                    current_msg = int(msg.msg_num)
-                    if current_msg == 1:
-                        self._new_satellites = []
-                    if msg.sv_prn_num_1 != "":
-                        snr_1 = None if msg.snr_1 == "" else float(msg.snr_1)
-                        self._new_satellites.append(
-                            SatelliteMeasurement(svid=int(msg.sv_prn_num_1),
-                                                 elevation_deg=float(msg.elevation_deg_1),
-                                                 azimuth=msg.azimuth_1,
-                                                 snr=snr_1)
-                        )
-
-                        if msg.sv_prn_num_2 != "":
-                            snr_2 = None if msg.snr_2 == "" else float(msg.snr_2)
-                            self._new_satellites.append(
-                                SatelliteMeasurement(svid=int(msg.sv_prn_num_2),
-                                                     elevation_deg=float(msg.elevation_deg_2),
-                                                     azimuth=msg.azimuth_2,
-                                                     snr=snr_2)
-                            )
-
-                            if msg.sv_prn_num_3 != "":
-                                snr_3 = None if msg.snr_3 == "" else float(msg.snr_3)
-                                self._new_satellites.append(
-                                    SatelliteMeasurement(svid=int(msg.sv_prn_num_3),
-                                                         elevation_deg=float(msg.elevation_deg_3),
-                                                         azimuth=msg.azimuth_3,
-                                                         snr=snr_3)
-                                )
-
-                                if msg.sv_prn_num_4 != "":
-                                    snr_4 = None if msg.snr_4 == "" else float(msg.snr_4)
-                                    self._new_satellites.append(
-                                        SatelliteMeasurement(svid=int(msg.sv_prn_num_4),
-                                                             elevation_deg=float(msg.elevation_deg_4),
-                                                             azimuth=msg.azimuth_4,
-                                                             snr=snr_4)
-                                    )
-
-                    if current_msg == total_msg:
-                        self.visible_satellites = self._new_satellites
-                        self._new_satellites = []
-                        await self.raise_event(VisibleSatellitesEventArgs(GPS.SATELLITE_LIST_EVENT, self.visible_satellites))
-
-                except ValueError as e:
-                    await self.raise_error(e)
+                self._parse_gsv(msg)
 
         except pynmea2.ParseError as e:
+            await self.raise_error(e)
+
+    def _parse_gsv(self, msg):
+        try:
+            total_msg = int(msg.num_messages)
+            current_msg = int(msg.msg_num)
+            if current_msg == 1:
+                self._new_satellites = []
+            if msg.sv_prn_num_1 != "":
+                snr_1 = None if msg.snr_1 == "" else float(msg.snr_1)
+                self._new_satellites.append(
+                    SatelliteMeasurement(svid=int(msg.sv_prn_num_1),
+                                         elevation_deg=float(msg.elevation_deg_1),
+                                         azimuth=msg.azimuth_1,
+                                         snr=snr_1)
+                )
+
+                if msg.sv_prn_num_2 != "":
+                    snr_2 = None if msg.snr_2 == "" else float(msg.snr_2)
+                    self._new_satellites.append(
+                        SatelliteMeasurement(svid=int(msg.sv_prn_num_2),
+                                             elevation_deg=float(msg.elevation_deg_2),
+                                             azimuth=msg.azimuth_2,
+                                             snr=snr_2)
+                    )
+
+                    if msg.sv_prn_num_3 != "":
+                        snr_3 = None if msg.snr_3 == "" else float(msg.snr_3)
+                        self._new_satellites.append(
+                            SatelliteMeasurement(svid=int(msg.sv_prn_num_3),
+                                                 elevation_deg=float(msg.elevation_deg_3),
+                                                 azimuth=msg.azimuth_3,
+                                                 snr=snr_3)
+                        )
+
+                        if msg.sv_prn_num_4 != "":
+                            snr_4 = None if msg.snr_4 == "" else float(msg.snr_4)
+                            self._new_satellites.append(
+                                SatelliteMeasurement(svid=int(msg.sv_prn_num_4),
+                                                     elevation_deg=float(msg.elevation_deg_4),
+                                                     azimuth=msg.azimuth_4,
+                                                     snr=snr_4)
+                            )
+
+            if current_msg == total_msg:
+                self.visible_satellites = self._new_satellites
+                self._new_satellites = []
+                await self.raise_event(VisibleSatellitesEventArgs(GPS.SATELLITE_LIST_EVENT, self.visible_satellites))
+
+        except ValueError as e:
             await self.raise_error(e)
 
     def check_connection(self):
