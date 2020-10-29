@@ -16,6 +16,8 @@ class ADS1015:
         self.BUS = i2c_bus  # SMBus object (import smbus). The I2C bus connected to the device
         self.DEVICE_ADDRESS = address  # ADS1015 address, which depends of the value of the ADDR pin
         self.READY_PIN = ready  # DigitalInputDevice (from gpiozero). Conversion ready signal
+        self.BUS.write_i2c_block_data(self.DEVICE_ADDRESS, self._HI_THRES_REGISTER, [0xFF, 0xFF])
+        self.BUS.write_i2c_block_data(self.DEVICE_ADDRESS, self._LO_THRES_REGISTER, [0x00, 0x00])
 
     @staticmethod
     def _twos_comp(val, bits):
@@ -154,8 +156,7 @@ class ADS1015:
                                       [config_first_byte, config_second_byte])  # starting single-shot conversion
 
     def read_single_shot_debug(self, channel, voltage_reference, data_rate):
-        self.BUS.write_i2c_block_data(self.DEVICE_ADDRESS, self._HI_THRES_REGISTER, [0xFF, 0xFF])
-        self.BUS.write_i2c_block_data(self.DEVICE_ADDRESS, self._LO_THRES_REGISTER, [0x00, 0x00])
+
         mux_code = self._get_channel(channel)
         pga_code = self._get_pga(voltage_reference)
         data_rate_code = self._get_data_rate(data_rate)
