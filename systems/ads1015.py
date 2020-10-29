@@ -119,7 +119,7 @@ class ADS1015:
         else:
             self.configure_adc(channel, voltage_reference, data_rate)
             self.wait_ack()
-            self.read_continuous(channel, voltage_reference, data_rate)
+            return self.read_continuous(channel, voltage_reference, data_rate)
 
     def read_single_shot(self, channel, voltage_reference):
         if channel == self._DEFAULT_CHANNEL:
@@ -129,6 +129,7 @@ class ADS1015:
             self.wait_ack()
             reg = self.BUS.read_i2c_block_data(self.DEVICE_ADDRESS, self._CONVERSION_REGISTER, 2)
             self.configure_adc(self._DEFAULT_CHANNEL, voltage_reference, self._DEFAULT_DATA_RATE)
+        return self._data_processing(reg, voltage_reference)
 
     def _configure_single(self, channel, voltage_reference):
         # Aimed for private use by the class method read_single_shot
