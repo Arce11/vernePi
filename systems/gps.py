@@ -63,51 +63,47 @@ class GPS(AsyncEventSource):
                     await self.raise_event(LocationEventArgs(GPS.LOCATION_EVENT, self.location))
 
             elif msg.sentence_type == "GSV":
-                self._parse_gsv(msg)
+                await self._parse_gsv(msg)
 
         except pynmea2.ParseError as e:
             await self.raise_error(e)
 
-    def _parse_gsv(self, msg):
+    async def _parse_gsv(self, msg):
         try:
             total_msg = int(msg.num_messages)
             current_msg = int(msg.msg_num)
             if current_msg == 1:
                 self._new_satellites = []
             if msg.sv_prn_num_1 != "":
-                snr_1 = None if msg.snr_1 == "" else float(msg.snr_1)
                 self._new_satellites.append(
-                    SatelliteMeasurement(svid=int(msg.sv_prn_num_1),
-                                         elevation_deg=float(msg.elevation_deg_1),
+                    SatelliteMeasurement(svid=msg.sv_prn_num_1,
+                                         elevation_deg=msg.elevation_deg_1,
                                          azimuth=msg.azimuth_1,
-                                         snr=snr_1)
+                                         snr=msg.snr_1)
                 )
 
                 if msg.sv_prn_num_2 != "":
-                    snr_2 = None if msg.snr_2 == "" else float(msg.snr_2)
                     self._new_satellites.append(
-                        SatelliteMeasurement(svid=int(msg.sv_prn_num_2),
-                                             elevation_deg=float(msg.elevation_deg_2),
+                        SatelliteMeasurement(svid=msg.sv_prn_num_2,
+                                             elevation_deg=msg.elevation_deg_2,
                                              azimuth=msg.azimuth_2,
-                                             snr=snr_2)
+                                             snr=msg.snr_2)
                     )
 
                     if msg.sv_prn_num_3 != "":
-                        snr_3 = None if msg.snr_3 == "" else float(msg.snr_3)
                         self._new_satellites.append(
-                            SatelliteMeasurement(svid=int(msg.sv_prn_num_3),
-                                                 elevation_deg=float(msg.elevation_deg_3),
+                            SatelliteMeasurement(svid=msg.sv_prn_num_3,
+                                                 elevation_deg=msg.elevation_deg_3,
                                                  azimuth=msg.azimuth_3,
-                                                 snr=snr_3)
+                                                 snr=msg.snr_3)
                         )
 
                         if msg.sv_prn_num_4 != "":
-                            snr_4 = None if msg.snr_4 == "" else float(msg.snr_4)
                             self._new_satellites.append(
-                                SatelliteMeasurement(svid=int(msg.sv_prn_num_4),
-                                                     elevation_deg=float(msg.elevation_deg_4),
+                                SatelliteMeasurement(svid=msg.sv_prn_num_4,
+                                                     elevation_deg=msg.elevation_deg_4,
                                                      azimuth=msg.azimuth_4,
-                                                     snr=snr_4)
+                                                     snr=msg.snr_4)
                             )
 
             if current_msg == total_msg:
@@ -148,12 +144,13 @@ class GPS(AsyncEventSource):
 
 
 class SatelliteMeasurement:
-    def __init__(self, svid: int, elevation_deg: float, azimuth: float, snr: Union[float, None]):
+    def __init__(self, svid: str, elevation_deg: str, azimuth: str, snr: str):
         # svid: Space Vehicle ID
-        self.svid = svid  # type: int
-        self.elevation_deg = elevation_deg  # type: float
-        self.azimuth = azimuth  # type: float
-        self.snr = snr  # type: Union[float, None]
+        # Some fields may be empty
+        self.svid = svid  # type: str
+        self.elevation_deg = elevation_deg  # type: str
+        self.azimuth = azimuth  # type: str
+        self.snr = snr  # type: str
 
 
 class LocationEventArgs(BaseEventArgs):
@@ -182,7 +179,7 @@ if __name__ == "__main__":
         if type(param) is LocationEventArgs:
             print(f"New Location: {repr(param.location)}")
         elif type(param) is VisibleSatellitesEventArgs:
-            print(f"New satellite list: {param.satellite_list}")
+            print(f"New satellite list (length {len(param.satellite_list)}): {param.satellite_list}")
 
     async def error_listener(source, param):
         print(f"New Error: {param}")
