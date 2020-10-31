@@ -1,4 +1,4 @@
-from systems.ads1015 import ADS1015
+from systems.ads1015_old import ADS1015
 from systems.traction_system import TractionSystem
 from gpiozero import DigitalInputDevice
 import smbus
