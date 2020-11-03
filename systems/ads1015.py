@@ -104,9 +104,9 @@ class ADS1015:
         self._bus.write_i2c_block_data(self._device_address, self._HI_THRES_REGISTER, [0xFF, 0xFF])
         self._bus.write_i2c_block_data(self._device_address, self._LO_THRES_REGISTER, [0x00, 0x00])
 
-    def configure_defaults(self, channel: int, voltage_reference: float, data_rate: int):
+    def configure_defaults(self, channel: int, voltage_reference: float, sample_rate: int):
         self._default_channel = channel
-        self._default_sample_rate = data_rate
+        self._default_sample_rate = sample_rate
         self._default_voltage_ref = voltage_reference
         # Configuration of CONFIG_REGISTER to perform a continuous conversion
         #   (1) OS[15] = 0, no effect
@@ -120,7 +120,7 @@ class ADS1015:
         #   (9) COMP_QUE[1:0] = any value other than 11 when using ADDR/READY as a conversion ready signal
         mux_code = ADS1015._get_channel(channel)
         pga_code = ADS1015._get_pga(voltage_reference)
-        data_rate_code = ADS1015._get_data_rate(data_rate)
+        data_rate_code = ADS1015._get_data_rate(sample_rate)
         config_first_byte = (0 << 7) | (mux_code << 4) | (pga_code << 1) | 0
         config_second_byte = (data_rate_code << 5) | (0 << 4) | (1 << 3) | 0
         self._bus.write_i2c_block_data(self._device_address, self._CONFIG_REGISTER,

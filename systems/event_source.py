@@ -6,7 +6,7 @@ class AsyncEventSource:
         """
         Base class for event sources that ONLY implement asynchronous callbacks
 
-        :param nursery nursery: Trio nursery. Needed in order to raise asynchronous events without waiting for them
+        :param nursery: Trio nursery. Needed in order to raise asynchronous events without waiting for them
         :param List[async function] notification_callbacks: list of async functions to be notified of the event
         :param List[async function] error_callbacks: list of async functions to be called when an error happens
         """
