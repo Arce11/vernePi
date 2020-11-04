@@ -9,9 +9,9 @@ import trio
 class MickeyMouseDetection(AsyncEventSource):
     TURN_DIRECTION_EVENT = "TURN_DIRECTION_EVENT"
     # --- Needs calibration ---
-    _VOLTAGE_CENTER = 1.17  # Ideal "straigth ahead" value
-    _VOLTAGE_R_OFFSET = 0.15  # Margin to one side of _VOLTAGE_CENTER before deciding to turn right
-    _VOLTAGE_L_OFFSET = 0.15  # Margin to the other side of _VOLTAGE_CENTER before deciding to turn left
+    _VOLTAGE_CENTER = 1.30  # Ideal "straight ahead" value
+    _VOLTAGE_R_OFFSET = 0.13  # Margin to one side of _VOLTAGE_CENTER before deciding to turn right
+    _VOLTAGE_L_OFFSET = 0.13  # Margin to the other side of _VOLTAGE_CENTER before deciding to turn left
     # -------------------------
     _MAX_EXPECTED_VOLTAGE = 1.7
     _VOLTAGE_REFERENCE = 1.8
@@ -65,7 +65,7 @@ class MickeyMouseDetection(AsyncEventSource):
         """
         # Assumption: 90deg phase line placed after LEFT antenna
         # Therefore: Voltage > _VOLTAGE_CENTER  ->  Need to turn "left" (counter-clockwise)
-       #  return voltage
+        # return voltage
         if voltage > self._MAX_EXPECTED_VOLTAGE:  # Very close to reference voltage -> no beacon detected
             return None
 
