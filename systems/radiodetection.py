@@ -70,7 +70,7 @@ class MickeyMouseDetection(AsyncEventSource):
         # return voltage, 1  # For debugging only
 
         if voltage > self._MAX_EXPECTED_VOLTAGE:  # Very close to reference voltage -> no beacon detected
-            return None, 0
+            return None, 2
         if voltage < self._VOLTAGE_R_THRESHOLD:  # Need to turn right (clockwise)
             confidence = (self._VOLTAGE_R_THRESHOLD - voltage)/self._CONFIDENCE_NORMALIZATION_FACTOR
             return -1, confidence
