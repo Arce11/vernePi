@@ -53,12 +53,12 @@ class ControlSystem:
         if angle_sign is None:
             self._tractor.stop(1)
         elif angle_sign == 0:
-            self._tractor.forward(0.5)
+            self._tractor.forward(0.8)
         else:
             self._tractor.turn(angle_sign*0.5)
 
     async def radio_printer(self, source, param):
-        print(f"## {param.angle_sign} ##\t## {param.confidence}")
+        print(f"New radio system event: ## {param.angle_sign} ##\t## {param.confidence}")
 
 
 async def main():

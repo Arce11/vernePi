@@ -12,10 +12,15 @@ class MickeyMouseDetection(AsyncEventSource):
     _VOLTAGE_CENTER = 1.30  # Ideal "straight ahead" value
     _VOLTAGE_R_OFFSET = 0.13  # Margin to one side of _VOLTAGE_CENTER before deciding to turn right
     _VOLTAGE_L_OFFSET = 0.13  # Margin to the other side of _VOLTAGE_CENTER before deciding to turn left
+    # Thresholds defined assuming a 90deg delay line on the LEFT antenna
+    _VOLTAGE_R_THRESHOLD = _VOLTAGE_CENTER - _VOLTAGE_R_OFFSET
+    _VOLTAGE_L_THRESHOLD = _VOLTAGE_CENTER + _VOLTAGE_L_OFFSET
     # -------------------------
-    _MAX_EXPECTED_VOLTAGE = 1.7
-    _VOLTAGE_REFERENCE = 1.8
-    _CONFIDENCE_NORMALIZATION_FACTOR = 1
+    _MAX_EXPECTED_VOLTAGE = 1.55  # Ideal max. value for 90deg delay line & 12cm antenna separation @ 874MHz
+    _VOLTAGE_REFERENCE = 1.75     # 1.8V is the ideal value. 1.75V is closer to reality @ 874MHz
+    # Values > _VOLTAGE_REFERENCE_THRESHOLD are assumed to represent the reference voltage, not a phase difference
+    _VOLTAGE_REFERENCE_THRESHOLD = _VOLTAGE_REFERENCE - (_VOLTAGE_REFERENCE - _MAX_EXPECTED_VOLTAGE)/2
+    _CONFIDENCE_NORMALIZATION_FACTOR = 0.02
 
     _FIFO_STACK_LENGTH = 5
 
@@ -44,37 +49,37 @@ class MickeyMouseDetection(AsyncEventSource):
             self._fifo_stack[1:len(self._fifo_stack)] = self._fifo_stack[0:len(self._fifo_stack)-1]
             self._fifo_stack[0] = voltage
             if counter % self._FIFO_STACK_LENGTH == 0:
-                average_voltage = sum(self._fifo_stack)/len(self._fifo_stack)
-                angle = self.get_angle_sign(average_voltage)
-                if angle == 0:  # Higher confidence the lower the deviation from the ideal center
-                    confidence = 1 - abs(average_voltage - self._VOLTAGE_CENTER)/self._CONFIDENCE_NORMALIZATION_FACTOR
-                else:  # Higher confidence the higher the deviation from the ideal center
-                    confidence = abs(average_voltage - self._VOLTAGE_CENTER)/self._CONFIDENCE_NORMALIZATION_FACTOR
+                angle, confidence = self.get_angle_sign()
                 await self.raise_event(BeaconDirectionEventArgs(self.TURN_DIRECTION_EVENT, angle, confidence))
             counter += 1
-
 
     def stop_notification_loop(self):
         self._is_running = False
 
-    def get_angle_sign(self, voltage):
+    def get_angle_sign(self):
         """
         Representation of whether the beacon is detected counter-clockwise (+1), clockwise (-1) or straight ahead (0)
         Returns None if no proper beacon signal is detected
-        :return: +1, 0 or -1
+        :return: (angle, confidence)
+            angle: +1, 0, -1 or None
+            confidence: representation of proximity to decision threshold. Normalized, so >1 is a confident decision
         """
         # Assumption: 90deg phase line placed after LEFT antenna
         # Therefore: Voltage > _VOLTAGE_CENTER  ->  Need to turn "left" (counter-clockwise)
-        # return voltage
-        if voltage > self._MAX_EXPECTED_VOLTAGE:  # Very close to reference voltage -> no beacon detected
-            return None
+        voltage = sum(self._fifo_stack) / len(self._fifo_stack)
+        # return voltage, 1  # For debugging only
 
-        if voltage < self._VOLTAGE_CENTER - self._VOLTAGE_R_OFFSET:  # Need to turn right (clockwise)
-            return -1
-        elif voltage > self._VOLTAGE_CENTER + self._VOLTAGE_L_OFFSET:  # Need to turn left (c-clockwise(
-            return +1
+        if voltage > self._MAX_EXPECTED_VOLTAGE:  # Very close to reference voltage -> no beacon detected
+            return None, 0
+        if voltage < self._VOLTAGE_R_THRESHOLD:  # Need to turn right (clockwise)
+            confidence = (self._VOLTAGE_R_THRESHOLD - voltage)/self._CONFIDENCE_NORMALIZATION_FACTOR
+            return -1, confidence
+        elif voltage > self._VOLTAGE_L_THRESHOLD:  # Need to turn left (c-clockwise)
+            confidence = (self._VOLTAGE_L_THRESHOLD + voltage)/self._CONFIDENCE_NORMALIZATION_FACTOR
+            return +1, confidence
         else:
-            return 0
+            confidence = min(voltage - self._VOLTAGE_R_THRESHOLD, self._VOLTAGE_L_THRESHOLD - voltage) / self._CONFIDENCE_NORMALIZATION_FACTOR
+            return 0, confidence
 
 
 class BeaconDirectionEventArgs(BaseEventArgs):
