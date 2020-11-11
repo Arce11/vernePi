@@ -52,6 +52,7 @@ class ControlSystem:
     def __init__(self, nursery: trio.Nursery):
         self._nursery = nursery  # type: trio.Nursery
         self._operation_mode = ""
+        self._change_mode(self.MODE_IDLE)
         self._system_state = ""
 
         self._tractor = TractionSystem(  # type: TractionSystem
@@ -73,24 +74,25 @@ class ControlSystem:
 
     async def initialize_components(self):
         self._nursery.start_soon(self._radio_system.a_run_notification_loop)
+        self._change_mode(self.MODE_AUTOMATIC)
 
     async def radio_listener(self, source, param):
         if self._operation_mode != self.MODE_AUTOMATIC or self._system_state != self.SYSTEM_AUTO_FOLLOWING:
             return
         angle_sign = param.angle_sign
         translated_traction = self.TRACTION_TRANSLATOR[angle_sign]
-        confidence = param.confidence
+        is_confident = param.is_confident
 
-        if self._traction_state == translated_traction or confidence < 1:  # If no change is needed, don't change
+        if self._traction_state == translated_traction or not is_confident:  # If no change is needed, don't change
             return
 
         self._traction_state = translated_traction
         if angle_sign is None:
             self._tractor.stop(1)
         elif angle_sign == 0:
-            self._tractor.forward(0.8)
+            self._tractor.forward(1)
         else:
-            self._tractor.turn(angle_sign*0.5)
+            self._tractor.turn(angle_sign*1)
 
     def _change_mode(self, mode):
         if mode == self.MODE_IDLE:  # Nothing to set up for idle mode (for now at least)
@@ -107,7 +109,7 @@ class ControlSystem:
 
 async def radio_printer(source, param):
     # For debugging purposes only
-    print(f"New radio system event: ## {param.angle_sign} ##\t## {param.confidence}")
+    print(f"New radio system event: ## {param.angle_sign} ##\t## {param.is_confident}")
 
 
 async def main():

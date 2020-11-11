@@ -9,8 +9,8 @@ import trio
 class MickeyMouseDetection(AsyncEventSource):
     TURN_DIRECTION_EVENT = "TURN_DIRECTION_EVENT"
     # --- Needs calibration ---
-    _VOLTAGE_CENTER = 1.30  # Ideal "straight ahead" value
-    _VOLTAGE_R_OFFSET = 0.13  # Margin to one side of _VOLTAGE_CENTER before deciding to turn right
+    _VOLTAGE_CENTER = 1.25  # Ideal "straight ahead" value
+    _VOLTAGE_R_OFFSET = 0.08  # Margin to one side of _VOLTAGE_CENTER before deciding to turn right
     _VOLTAGE_L_OFFSET = 0.13  # Margin to the other side of _VOLTAGE_CENTER before deciding to turn left
     # Thresholds defined assuming a 90deg delay line on the LEFT antenna
     _VOLTAGE_R_THRESHOLD = _VOLTAGE_CENTER - _VOLTAGE_R_OFFSET
@@ -20,7 +20,8 @@ class MickeyMouseDetection(AsyncEventSource):
     _VOLTAGE_REFERENCE = 1.75     # 1.8V is the ideal value. 1.75V is closer to reality @ 874MHz
     # Values > _VOLTAGE_REFERENCE_THRESHOLD are assumed to represent the reference voltage, not a phase difference
     _VOLTAGE_REFERENCE_THRESHOLD = _VOLTAGE_REFERENCE - (_VOLTAGE_REFERENCE - _MAX_EXPECTED_VOLTAGE)/2
-    _CONFIDENCE_NORMALIZATION_FACTOR = 0.02
+    _CONFIDENCE_THRESHOLD_TURN = 0.08
+    _CONFIDENCE_THRESHOLD_FORWARD = 0.02
 
     _FIFO_STACK_LENGTH = 5
 
@@ -62,28 +63,28 @@ class MickeyMouseDetection(AsyncEventSource):
         Returns None if no proper beacon signal is detected
         :return: (angle, confidence)
             angle: +1, 0, -1 or None
-            confidence: representation of proximity to decision threshold. Normalized, so >1 is a confident decision
+            confidence: whether there is confidence in the resulting angle (should not change course if not confident)
         """
         # Assumption: 90deg phase line placed after LEFT antenna
         # Therefore: Voltage > _VOLTAGE_CENTER  ->  Need to turn "left" (counter-clockwise)
         voltage = sum(self._fifo_stack) / len(self._fifo_stack)
-        # return voltage, 1  # For debugging only
+        # return voltage, True  # For debugging only
 
         if voltage > self._MAX_EXPECTED_VOLTAGE:  # Very close to reference voltage -> no beacon detected
-            return None, 2
+            return None, True
         if voltage < self._VOLTAGE_R_THRESHOLD:  # Need to turn right (clockwise)
-            confidence = (self._VOLTAGE_R_THRESHOLD - voltage)/self._CONFIDENCE_NORMALIZATION_FACTOR
+            confidence = (self._VOLTAGE_R_THRESHOLD - voltage) > self._CONFIDENCE_THRESHOLD_TURN
             return -1, confidence
         elif voltage > self._VOLTAGE_L_THRESHOLD:  # Need to turn left (c-clockwise)
-            confidence = (self._VOLTAGE_L_THRESHOLD + voltage)/self._CONFIDENCE_NORMALIZATION_FACTOR
+            confidence = (self._VOLTAGE_L_THRESHOLD + voltage) > self._CONFIDENCE_THRESHOLD_TURN
             return +1, confidence
         else:
-            confidence = min(voltage - self._VOLTAGE_R_THRESHOLD, self._VOLTAGE_L_THRESHOLD - voltage) / self._CONFIDENCE_NORMALIZATION_FACTOR
+            confidence = min(voltage - self._VOLTAGE_R_THRESHOLD, self._VOLTAGE_L_THRESHOLD - voltage) > self._CONFIDENCE_THRESHOLD_FORWARD
             return 0, confidence
 
 
 class BeaconDirectionEventArgs(BaseEventArgs):
-    def __init__(self, event_type: str, angle_sign: float, confidence: float):
+    def __init__(self, event_type: str, angle_sign: float, is_confident: bool):
         """
         :param event_type: event identifier
         :param angle_sign: +1, -1, 0 or None
@@ -91,7 +92,7 @@ class BeaconDirectionEventArgs(BaseEventArgs):
         """
         super().__init__(event_type)
         self.angle_sign = angle_sign  # type: float
-        self.confidence = confidence  # type: float
+        self.is_confident = is_confident  # type: bool
 
 
 if __name__ == "__main__":
@@ -102,7 +103,7 @@ if __name__ == "__main__":
     COUNTER = 0
 
     async def process_data(source, param):
-        print(f"## {param.angle_sign} ##\t## {param.confidence}")
+        print(f"## {param.angle_sign} ##\t## {param.is_confidentconfidence}")
 
 
     async def parent():
