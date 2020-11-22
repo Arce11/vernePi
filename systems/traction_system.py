@@ -253,13 +253,13 @@ class TractionSystem:
             "IDLE" if both motors are idle (disconnected)
             "UNKNOWN" if any other (should not happen)
         """
-        if self._right_motor.value >0 and self._left_motor.value >0:
+        if self._right_motor.value > 0 and self._left_motor.value > 0:
             return self.FORWARD_STATE
-        elif self._right_motor.value <0 and self._left_motor.value <0:
+        elif self._right_motor.value < 0 and self._left_motor.value < 0:
             return self.BACKWARD_STATE
-        elif self._right_motor.value >0 and self._left_motor.value <=0:
+        elif self._right_motor.value > 0 and self._left_motor.value <= 0:
             return self.TURN_LEFT_STATE
-        elif self._right_motor.value <=0 and self._left_motor.value >0:
+        elif self._right_motor.value <= 0 and self._left_motor.value > 0:
             return self.TURN_RIGHT_STATE
         elif self._right_motor.is_braking and self._left_motor.is_braking:
             return self.STOPPED_STATE
