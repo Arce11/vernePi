@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+<meta charset="utf-8">
+<title>JavaScript Ajax GET Demo</title>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.1.6/Chart.bundle.min.js"></script>
+</head>
+<body>
+    <div style="width:500px">
+        <canvas id="migrafico" width="400" height="400"</canvas>
+        <script>
+
+            function dibujagrafica(ctx,temp,ejey) {
+            //var ctx=document.getElementById("migrafico");
+
+            var tempData = {
+                labels: ejey,
+                datasets: [{
+                    label: "Velocidad coche",
+                    fill: false,
+                    data: temp,
+                    borderColor: 'orange',
+                }]
+            };
+            var chartOptions = {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        boxWidth: 80,
+                        fontColor: 'black'
+
+                    }
+                }
+            }
+
+
+
+            var myChart =new Chart(ctx, {
+                type: 'line',
+                data: tempData,
+                options: chartOptions
+
+            });
+
+            }
+
+
+
+
+        function lanzapet() {
+
+            var contador=0;
+            var ctx=document.getElementById("migrafico");
+            const url = 'http://10.38.16.5:5000/';
+            var ejey=[];
+            const http = new XMLHttpRequest();
+            http.open("GET", url, true);
+             // Enviamos la petición al servidor
+            http.responseType='text';
+            var temp=[];
+            http.send();
+            http.onreadystatechange = function () {
+                if(this.readyState === 4 && this.status === 200) {
+                    // Insertamos la respuesta procedente del servidor en el elemento HTML
+                    document.getElementById("result").innerHTML = this.responseText;
+                    var respuesta =http.responseText;
+                    const respuesta_json=JSON.parse(respuesta);
+                    console.log(respuesta_json.temperatura1);
+                    for (i in respuesta_json){
+
+                        temp.push(respuesta_json[i]);
+                        ejey.push(i);
+
+                    }
+
+
+                    dibujagrafica(ctx,temp,ejey);
+
+
+
+
+
+                }
+                else{
+                  document.getElementById("result").innerHTML = "Error de conexion";
+                }
+
+            }
+
+
+        }
+
+        //setInterval(lanzapet,2000);
+
+        </script>
+
+    </div>
+    <div id="result">
+        <p>La respuesta del servidor irá aquí</p>
+
+    </div>
+
+
+
+    <button type="button" onclick="lanzapet()">Lanza peticion</button>
+    <button type="button" onclick="dibujagrafica()">Dibujar grafica</button>
+
+</body>
+
+</html>
