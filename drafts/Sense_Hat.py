@@ -9,11 +9,11 @@ while True:
     print("la temperatura es:")
     time_inicio=time.time()
     print (sense.get_temperature())
-    orientation = sense.get_orientation()
-    pitch = orientation['pitch']
-    roll = orientation['roll']
-    yaw = orientation['yaw']
-    print(pitch, yaw, roll)
+    print("la humedad es:")
+    print(sense.get_humidity())
+    sense.show_message("Verne")
+
+
     time.sleep(1)
 
 
