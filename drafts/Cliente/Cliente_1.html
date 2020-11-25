@@ -10,19 +10,22 @@
     <div style="width:500px">
         <canvas id="migrafico" width="400" height="400"</canvas>
         <script>
+            // Declaración de variables globales para la representación gráfica
 
-            function dibujagrafica(ctx,temp,ejey) {
-            //var ctx=document.getElementById("migrafico");
+            var ejex=[]; // vector que almacena los datos del ejex. Se puede actualizar dinámicamente.
+            var temp=[]; //vector que almacena los datos a representar. Se actualiza dinámicamente.
+            var ctx=document.getElementById("migrafico"); //contiene el string del gráfico
 
             var tempData = {
-                labels: ejey,
+                labels: ejex,
                 datasets: [{
-                    label: "Velocidad coche",
+                    label: "Temperatura",
                     fill: false,
                     data: temp,
                     borderColor: 'orange',
                 }]
             };
+
             var chartOptions = {
                 legend: {
                     display: true,
@@ -35,52 +38,54 @@
                 }
             }
 
-
-
-            var myChart =new Chart(ctx, {
+            // función para dibujar la gráfica. Se llama solo una vez antes de entrar en la ejecución periódica de las peticiones
+            function dibujaGrafica(ctx){
+                var myChart =new Chart(ctx, {
                 type: 'line',
                 data: tempData,
                 options: chartOptions
 
             });
 
+            return myChart;
+
             }
 
+            //función para actualizar los valores de la gráfica.
+            //faltaría por actualizar los valores del ejex que es el mismo concepto.
+            function addData(chart,temp,ejex){
 
+                chart.data.datasets[0].data =temp;
+                chart.update();
+
+            }
 
 
         function lanzapet() {
 
-            var contador=0;
-            var ctx=document.getElementById("migrafico");
-            const url = 'http://10.38.16.5:5000/';
-            var ejey=[];
+            const url = 'http://192.168.1.41:5000/';
             const http = new XMLHttpRequest();
             http.open("GET", url, true);
              // Enviamos la petición al servidor
             http.responseType='text';
-            var temp=[];
             http.send();
             http.onreadystatechange = function () {
                 if(this.readyState === 4 && this.status === 200) {
                     // Insertamos la respuesta procedente del servidor en el elemento HTML
                     document.getElementById("result").innerHTML = this.responseText;
                     var respuesta =http.responseText;
+                    //procesamos respuesta
                     const respuesta_json=JSON.parse(respuesta);
                     console.log(respuesta_json.temperatura1);
                     for (i in respuesta_json){
 
+                        //añadimos valores a los vectores
                         temp.push(respuesta_json[i]);
-                        ejey.push(i);
+                        ejex.push(i);
+                        //actualizamos datos en el chart
+                        addData(chart,temp,ejex);
 
                     }
-
-
-                    dibujagrafica(ctx,temp,ejey);
-
-
-
-
 
                 }
                 else{
@@ -89,10 +94,12 @@
 
             }
 
-
+        console.log("Valor de temp",temp);
+        console.log("valor de eje x",ejex);
         }
 
-        //setInterval(lanzapet,2000);
+        var chart=dibujaGrafica(ctx);
+        setInterval(lanzapet,2000);
 
         </script>
 
@@ -103,9 +110,7 @@
     </div>
 
 
-
     <button type="button" onclick="lanzapet()">Lanza peticion</button>
-    <button type="button" onclick="dibujagrafica()">Dibujar grafica</button>
 
 </body>
 
