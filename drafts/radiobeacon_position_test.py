@@ -5,7 +5,7 @@ import smbus
 import time
 import statistics
 
-I2C_BUS = 1
+I2C_BUS = 1 
 DEVICE_I2C_ADDRESS = 0x48
 ALERT_READY_SIGNAL = 16
 RUN_MOTORS = True
