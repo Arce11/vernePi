@@ -1,3 +1,6 @@
+import threading
+import RPi.GPIO as gpio
+from time import sleep
 from gpiozero import DigitalInputDevice
 from pycc1101 import TICC1101
 
@@ -18,6 +21,8 @@ from pycc1101 import TICC1101
     WARNING: check if the SPI interface is activated before running the code
         (Preferences > Raspberry Pi Configuration > Interfaces > SPI > Enabled > Reboot)
 '''
+
+GD0_PIN = 25    # Pin 22 (interrupt line)
 
 SPI_conf = {
     "bus":      0,
@@ -54,20 +59,19 @@ state_dict = {
     22: "TXFIFO_UNDERWFLOW"
 }
 
-
 def radioState(cc1101_transceiver):
     code = cc1101_transceiver._getMRStateMachineState()
     return state_dict.get(code)
-
-
-GD0_PIN = 25    # Pin 22 (interrupt line)
 
 # CC1101 Transceiver Setup -----
 radio = TICC1101(bus=SPI_conf.get("bus"), device=SPI_conf.get("device"))
     # CC1101 transceiver programming object
     # SPI bus numb.1 and device numb.1 (CE0)
 
-interrupt = DigitalInputDevice(GD0_PIN)         # GPIO25 configuration ("new packet received" interrupt)
+
+# interrupt = DigitalInputDevice(GD0_PIN)       # GPIO25 configuration ("new packet received" interrupt)
+gpio.setmode(gpio.BOARD)                        # pins numbered after their board number
+gpio.setup(7, gpio.IN, pull_up_down=gpio.PUD_DOWN)
 radio.reset()                                   # send reset command (command strobe)
 radio.setDefaultValues()                        # initialization of the CC1101 registers with its default values
 print("Initialization complete!")
@@ -86,13 +90,20 @@ fxosc = 26*pow(10,6)
 print("Carrier frequency: {}".format( base_frequency*(fxosc/pow(2,16)) ) )  # Carrier frequency (registers FREQ1, FREQ2 y FREQ3)
 print("Operation mode: {}".format(radioState(radio)))                       # Displaying the current state of the cc1101
 
+
+thread_latch = False
+
+
+def _worker_():
+    print("Hola desde el hilo!!!!!")
+
+
+def onActivated(channel):
+    th_worker = threading.Thread(target=_worker_)
+    th_worker.daemon = True
+    th_worker.start()
+
+gpio.add_event_detect(7, gpio.RISING, callback=onActivated)
+
 while True:
-    # rssi = radio._readSingleByte(radio.RSSI)
-    # print("RSSI: {} dBm".format(radio._getRSSI(rssi)))
-    if interrupt.value:
-        received_data = radio.recvData()
-        #plt.plot(received_data)
-        #plt.show()
-        radio.sidle()                                   # enter the transceiver into IDLE mode
-        radio._setRXState()                             # enter the transceiver into RX mode
-        print("Operation mode: {}".format(radioState(radio)))
+    sleep(1)

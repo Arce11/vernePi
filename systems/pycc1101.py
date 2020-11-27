@@ -608,8 +608,8 @@ class TICC1101(object):
                 print("RSSI: {} dBm".format(self._getRSSI(rssi)))
                 print("LQI: {}".format(self._getLQI(lqi)))
 
-            # print(''.join([chr(code) for code in data]))
-            print(data)
+            print(''.join([chr(code) for code in data]))
+            # print(data)
 
             self._flushRXFifo()
             return data
