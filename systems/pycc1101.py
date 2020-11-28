@@ -579,37 +579,37 @@ class TICC1101(object):
                 data_len = self._readSingleByte(self.RXFIFO)
 
                 if data_len > max_len:
-                    if self.debug:
-                        print("Len of data exceeds the configured maximum packet len")
+                    # if self.debug:
+                        # print("Len of data exceeds the configured maximum packet len")
                     return False
 
-                if self.debug:
-                    print("Receiving a variable len packet")
-                    print("max len: {}".format(max_len))
-                    print("Packet length: {}".format(data_len))
+                #if self.debug:
+                #    print("Receiving a variable len packet")
+                #    print("max len: {}".format(max_len))
+                #    print("Packet length: {}".format(data_len))
 
             elif sending_mode == "PKT_LEN_INFINITE":
                 # ToDo
                 raise Exception("MODE NOT IMPLEMENTED")
 
             data = self._readBurst(self.RXFIFO, data_len)
-            valPktCtrl1 = self.getRegisterConfiguration("PKTCTRL1", False)
+            #valPktCtrl1 = self.getRegisterConfiguration("PKTCTRL1", False)
 
-            if valPktCtrl1[5] == "1":  # PKTCTRL1[5] == APPEND_STATUS
+            #if valPktCtrl1[5] == "1":  # PKTCTRL1[5] == APPEND_STATUS
                 # When enabled, two status bytes will be appended to the payload of the
                 # packet. The status bytes contain RSSI and LQI values, as well as CRC OK.
 
-                rssi = self._readSingleByte(self.RXFIFO)
-                val = self._readSingleByte(self.RXFIFO)
-                lqi = val & 0x7f
+            #    rssi = self._readSingleByte(self.RXFIFO)
+            #    val = self._readSingleByte(self.RXFIFO)
+            #    lqi = val & 0x7f
 
-            if self.debug and valPktCtrl1[5] == "1":
-                print("Packet information is enabled")
-                print("RSSI: {} dBm".format(self._getRSSI(rssi)))
-                print("LQI: {}".format(self._getLQI(lqi)))
+            #if self.debug and valPktCtrl1[5] == "1":
+            #    print("Packet information is enabled")
+            #    print("RSSI (Rx FIFO): {} dBm".format(self._getRSSI(rssi)))
+            #    print("LQI: {}".format(self._getLQI(lqi)))
 
-            print(''.join([chr(code) for code in data]))
-            # print(data)
-
+            # print(''.join([chr(code) for code in data]))
+            rssi = self._readSingleByte(self.RXFIFO)
+            print("RSSI (Rx FIFO): {} dBm".format(self._getRSSI(rssi)))
             self._flushRXFifo()
             return data
