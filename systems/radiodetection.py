@@ -6,7 +6,7 @@ import smbus
 import trio
 
 
-class MickeyMouseDetection(AsyncEventSource):
+class RadioDetection(AsyncEventSource):
     TURN_DIRECTION_EVENT = "TURN_DIRECTION_EVENT"
     # --- Needs calibration ---
     _VOLTAGE_CENTER = 1.25  # Ideal "straight ahead" value
@@ -83,6 +83,26 @@ class MickeyMouseDetection(AsyncEventSource):
             return 0, confidence
 
 
+class DummyRadioDetection(AsyncEventSource):
+    def __init__(self, adc: ADS1015, nursery: trio.Nursery, notification_callbacks=None, error_callbacks=None):
+        self._is_running = False
+        super().__init__(nursery, notification_callbacks, error_callbacks)
+
+    async def a_run_notification_loop(self):
+        if self._is_running:
+            return
+        self._is_running = True
+        while self._is_running:
+            await trio.sleep(0.5)
+            await self.raise_event(BeaconDirectionEventArgs(RadioDetection.TURN_DIRECTION_EVENT, 0, True))
+
+    def stop_notification_loop(self):
+        self._is_running = False
+
+    def get_angle_sign(self):
+        return 0, True
+
+
 class BeaconDirectionEventArgs(BaseEventArgs):
     def __init__(self, event_type: str, angle_sign: float, is_confident: bool):
         """
@@ -112,7 +132,7 @@ if __name__ == "__main__":
         adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=1)
 
         async with trio.open_nursery() as nursery:
-            radio_system = MickeyMouseDetection(adc, nursery)
+            radio_system = RadioDetection(adc, nursery)
             radio_system.subscribe(notification_callbacks=[process_data])
             nursery.start_soon(radio_system.a_run_notification_loop)
 

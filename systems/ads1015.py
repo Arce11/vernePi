@@ -152,6 +152,20 @@ class ADS1015:
         return ADS1015._data_processing(reg, voltage_reference)
 
 
+class DummyADS1015:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def configure_defaults(self, *args, **kwargs):
+        pass
+
+    def read_continuous(self, *args, **kwargs):
+        return 1
+
+    def read_single_shot(self, *args, **kwargs):
+        return 1
+
+
 if __name__ == "__main__":
     DEVICE_BUS = 1  # En RaspPi 3+, el bus I2C utilizado es el bus 1
     DEVICE_ADDRESS = 0x48  # Dirección usada por el integrado ADS1015 (si ADDR = GND => dirección 0x48)

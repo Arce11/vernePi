@@ -3,7 +3,7 @@ import time
 
 
 sense=SenseHat()
-#sense.show_message("VERNE A TOPE!!")
+sense.show_message("")
 
 while True:
     print("la temperatura es:")
@@ -11,7 +11,7 @@ while True:
     print (sense.get_temperature())
     print("la humedad es:")
     print(sense.get_humidity())
-    sense.show_message("Verne")
+    sense.show_message("")
 
 
     time.sleep(1)

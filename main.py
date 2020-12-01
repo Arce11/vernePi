@@ -1,23 +1,85 @@
-from systems.ads1015 import ADS1015
-from gpiozero import DigitalInputDevice
-from systems.radiodetection import MickeyMouseDetection
-from systems.traction_system import TractionSystem
+# External dependencies
 import smbus
 import trio
+from gpiozero import DigitalInputDevice
+from systems.traction_system import TractionSystem
+from systems.gps import LocationEventArgs, VisibleSatellitesEventArgs
+from systems.server import ServerErrorArgs
 
+
+# ---- DEBUG CONFIG -----------------------
+DEBUG_ADC = True
+DEBUG_RADIOSYSTEM = True
+DEBUG_SENSORS = False
+DEBUG_GPS = False
+DEBUG_SERVER = False
+# ------------------------------------------
+# ---- SERVER CONFIG -----------------------
+ROVER_ID = 'verne'
+SERVER_ADDRESS = '192.168.137.1'
+SERVER_PORT = 80
+# ------------------------------------------
 # ---- A/D CONFIG --------------------------
 DEVICE_BUS = 1  # In Raspberry Pi 3+, bus 1 is used
 DEVICE_ADDRESS = 0x48  # ADS1015 address (if ADDR = GND -> address 0x48)
-ALERT_READY_PIN = 1  # ALERT/READY GPIO pin for ADS1015
+ALERT_READY_PIN = 26  # ALERT/READY GPIO pin for ADS1015
 # ------------------------------------------
 # ---- TRACTION SYSTEM CONFIG --------------
-ENABLE_TRACTION = True  # Set to False to ignore all TODO: implement ENABLE_TRACTION toggle
+DRIVER_ENABLE_PIN = 12
 MOTOR_R_FORWARD_PIN = 17
 MOTOR_R_BACKWARD_PIN = 18
 MOTOR_R_ENABLE_PIN = 27
-MOTOR_L_FORWARD_PIN = 23
-MOTOR_L_BACKWARD_PIN = 24
-MOTOR_L_ENABLE_PIN = 22
+MOTOR_L_FORWARD_PIN = 5
+MOTOR_L_BACKWARD_PIN = 6
+MOTOR_L_ENABLE_PIN = 13
+# ------------------------------------------
+# ---- SENSE HAT PINS (FIXED) --------------
+# 5V, 3V3, GND
+# SDA (GPIO 2)
+# SCL (GPIO 3)
+# ID_SD (GPIO 0)
+# ID_SC (GPIO 1)
+# GPIO 8
+# GPIO 23
+# GPIO 24
+# GPIO 25
+# ------------------------------------------
+# ---------- GPS PINS (FIXED) --------------
+# 3V3/5V, GND
+# TXD (GPIO 14)
+# RXD (GPIO 15)
+GPS_PORT = "/dev/serial0"
+# ------------------------------------------
+# ---- TX/RX PINS (SPI0) -------------------
+# SPI0 MOSI (GPIO 10)
+# SPI0 MISO (GPIO 9)
+# SPI0 SCLK (GPIO 11)
+# SPI0 CE1 (GPIO 7)
+# SPI0 CE0 (GPIO 8) ---- ??????
+RX_INTERRUPTION_PIN = 26
+# ------------------------------------------
+
+# --------- DEBUG IMPORTS ------------------
+if DEBUG_ADC:
+    from systems.ads1015 import DummyADS1015 as ADS1015
+else:
+    from systems.ads1015 import ADS1015
+if DEBUG_RADIOSYSTEM:
+    from systems.radiodetection import DummyRadioDetection as RadioDetection
+else:
+    from systems.radiodetection import RadioDetection
+if DEBUG_SENSORS:
+    from systems.sensors import DummySenseHatWrapper as SenseHatWrapper
+else:
+    from systems.sensors import SenseHatWrapper
+if DEBUG_GPS:
+    from systems.gps import DummyGPS as GPS
+else:
+    from systems.gps import GPS
+if DEBUG_SERVER:
+    from systems.server import DummyServer as Server
+else:
+    from systems.server import Server
 # ------------------------------------------
 
 
@@ -34,18 +96,13 @@ class ControlSystem:
     SYSTEM_AUTO_REACHED = "REACHED"
     # Missing extra states for undefined modes
     # --------------------------------------
-    # ---- TRACTION STATES -----------------
-    # Used in AUTOMATIC mode to introduce hysteresis to trajectory changes
-    TRACTION_FORWARD = "FORWARD"
-    TRACTION_BACKWARD = "BACKWARD"
-    TRACTION_TURN_L = "LEFT"
-    TRACTION_TURN_R = "RIGHT"
-    TRACTION_IDLE = "IDLE"
+    # ---- TRACTION TRANSLATION ------------
+    # Used in AUTOMATIC mode to transform angle values into traction states
     TRACTION_TRANSLATOR = {  # Translates from angle signs received from radio system into traction states
-        0: TRACTION_FORWARD,
-        1: TRACTION_TURN_L,
-        -1: TRACTION_TURN_R,
-        None: TRACTION_IDLE,
+        0: TractionSystem.FORWARD_STATE,
+        1: TractionSystem.TURN_LEFT_STATE,
+        -1: TractionSystem.TURN_RIGHT_STATE,
+        None: TractionSystem.IDLE_STATE,
     }
     # --------------------------------------
 
@@ -54,7 +111,17 @@ class ControlSystem:
         self._operation_mode = ""
         self._change_mode(self.MODE_IDLE)
         self._system_state = ""
+        self._sensor_data = {
+            'latitude': None,
+            'longitude': None,
+            'altitude': None,
+            'temperature': None,
+            'humidity': None,
+            'pressure': None,
+            'rssi': None
+        }
 
+        # Traction system ----------------
         self._tractor = TractionSystem(  # type: TractionSystem
             forward_r=MOTOR_R_FORWARD_PIN,
             backward_r=MOTOR_R_BACKWARD_PIN,
@@ -64,16 +131,34 @@ class ControlSystem:
             enable_l=MOTOR_L_ENABLE_PIN
         )
         self._tractor.idle()
-        self._traction_state = self.TRACTION_IDLE
+
+        # ADC -----------------------------
         alert_ready = DigitalInputDevice(ALERT_READY_PIN, pull_up=True)
         bus = smbus.SMBus(DEVICE_BUS)
         self._adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=0)  # type: ADS1015
-        self._radio_system = MickeyMouseDetection(self._adc, self._nursery)
-        self._radio_system.subscribe(notification_callbacks=[radio_printer])  # DEBUG ONLY
-        self._radio_system.subscribe(notification_callbacks=[self.radio_listener])
+
+        # Radio System -------------------
+        self._radio_system = RadioDetection(self._adc, self._nursery, notification_callbacks=[self.radio_listener])
+        # self._radio_system.subscribe(notification_callbacks=[radio_printer])  # DEBUG ONLY
+
+        # SenseHat ------------------------
+        self._sensors = SenseHatWrapper(nursery, data=self._sensor_data)
+
+        # GPS -----------------------------
+        # TODO: GPS notification callbacks
+        # Lat/long/alt data is updated automatically, the satellite list is not used for now
+        self._gps = GPS(GPS_PORT, nursery, data=self._sensor_data)
+
+        # Server -------------------------
+        self._server = Server(SERVER_ADDRESS, SERVER_PORT, self._sensor_data, ROVER_ID, nursery,
+                              error_callbacks=[self.server_error])
 
     async def initialize_components(self):
         self._nursery.start_soon(self._radio_system.a_run_notification_loop)
+        self._nursery.start_soon(self._gps.a_run_notification_loop)
+        self._nursery.start_soon(self._sensors.a_run_notification_loop)
+        self._nursery.start_soon(self.visualize_data_values)
+        self._nursery.start_soon(self._server.initialize_session, True)
         self._change_mode(self.MODE_AUTOMATIC)
 
     async def radio_listener(self, source, param):
@@ -83,16 +168,35 @@ class ControlSystem:
         translated_traction = self.TRACTION_TRANSLATOR[angle_sign]
         is_confident = param.is_confident
 
-        if self._traction_state == translated_traction or not is_confident:  # If no change is needed, don't change
+        if self._tractor.state == translated_traction or not is_confident:  # If no change is needed, don't change
             return
 
-        self._traction_state = translated_traction
         if angle_sign is None:
             self._tractor.stop(1)
         elif angle_sign == 0:
             self._tractor.forward(1)
         else:
             self._tractor.turn(angle_sign*1)
+
+    async def server_error(self, source, param: ServerErrorArgs):
+        error_code = param.event_type
+        was_running = param.is_server_running
+        if error_code == Server.CONNECTION_ERROR:
+            print("!!!! DETECTED SERVER CONNECTION ERROR")
+            if was_running:  # If it was already running, try to reconnect
+                self._nursery.start_soon(self._server.a_run_update_loop)
+            else:  # If it was not running (disconnected from the start) try to initialize again
+                self._nursery.start_soon(self._server.initialize_session)
+        elif error_code == Server.SESSION_REGISTER_ERROR:
+            # This should never happen. If it does, this will probably not fix it, but will at least print the error
+            print("!!!! DETECTED SERVER REGISTRATION ERROR")
+            self._nursery.start_soon(self._server.initialize_session)
+        elif error_code == Server.SESSION_UPDATE_ERROR:
+            # This does not even interrupt the update loop.
+            print("!!!! DETECTED SERVER UPDATE ERROR")
+        else:
+            print(f"!!!! DETECTED UNKNOWN SERVER ERROR: {error_code}. WasRunning: {was_running}")
+
 
     def _change_mode(self, mode):
         if mode == self.MODE_IDLE:  # Nothing to set up for idle mode (for now at least)
@@ -101,10 +205,21 @@ class ControlSystem:
             self._operation_mode = self.MODE_AUTOMATIC
             # TODO: Implement RSSI measurements, and set STATE to REACHED initially (^^^)
             self._system_state = self.SYSTEM_AUTO_FOLLOWING
-            self._traction_state = self.TRACTION_IDLE
+            self._tractor.idle()
 
         else:
             raise ValueError(f"Invalid or unimplemented operation mode: {mode}")
+
+    async def visualize_data_values(self):
+        """
+        Periodically shows the sensor data values.
+        ONLY FOR DEBUGGING
+        """
+        counter = 0
+        while True:
+            print(f"### {counter}s ###  Data: {self._sensor_data}")
+            counter += 1
+            await trio.sleep(1)
 
 
 async def radio_printer(source, param):

@@ -9,17 +9,20 @@ class GPS(AsyncEventSource):
     """
     GPS module. Compatible with an event-based architecture (listeners are subscribed to GPS updates/errors),
     as well as with a polling-based architecture (latest GPS values are periodically checked externally).
+    If a data dictionary-like parameter is provided, its "latitude", "longitude" and "altitude" fields are updated
+    automatically.
     """
     LOCATION_EVENT = "LOCATION_EVENT"
     SATELLITE_LIST_EVENT = "SATELLITE_LIST_EVENT"
 
-    def __init__(self, port, nursery, notification_callbacks=None, error_callbacks=None):
+    def __init__(self, port, nursery, data=None, notification_callbacks=None, error_callbacks=None):
         super().__init__(nursery, notification_callbacks, error_callbacks)
         if port is None:
             raise ValueError('port cannot be None')
         try:
             self._connection = serial.Serial(port, 9600, timeout=5.0)
             self._a_connection = trio.wrap_file(self._connection)
+            self._data = data if data is not None else {'latitude': None, 'longitude': None, 'altitude': None}
         except serial.SerialException:
             print("ERROR initializing GPS module")
             raise
@@ -60,7 +63,10 @@ class GPS(AsyncEventSource):
             if msg.sentence_type == "GGA":
                 self.location = msg
                 if self.location is not None:
-                    await self.raise_event(LocationEventArgs(GPS.LOCATION_EVENT, self.location))
+                    self._data['altitude'] = self.location.altitude if self.location.altitude != 0 else None
+                    self._data['latitude'] = self.location.latitude if self.location.latitude != 0 else None
+                    self._data['longitude'] = self.location.longitude if self.location.longitude != 0 else None
+                    await self.raise_event(LocationEventArgs(GPS.LOCATION_EVENT, self._data.copy()))
 
             elif msg.sentence_type == "GSV":
                 await self._parse_gsv(msg)
@@ -126,17 +132,19 @@ class GPS(AsyncEventSource):
         except serial.SerialException:
             return False
 
-    async def a_run_update_loop(self):
+    async def a_run_notification_loop(self):
         """
         Runs an infinite update loop on the stored data. Asynchronous.
         """
+        if self._is_running:
+            return
         self._new_satellites = []
         self._is_running = True
         await self._a_flush_input()
         while self._is_running:
             await self._a_receive_data()
 
-    def stop_update_loop(self):
+    def stop_notification_loop(self):
         """
         Stops the update loop on the stored data. If it is not running, it does nothing.
         """
@@ -154,15 +162,36 @@ class SatelliteMeasurement:
 
 
 class LocationEventArgs(BaseEventArgs):
-    def __init__(self, event_type: str, location: pynmea2.GGA):
+    def __init__(self, event_type: str, data: dict):
         super().__init__(event_type)
-        self.location = location  # type: pynmea2.GGA
+        self.data = data  # type: dict
 
 
 class VisibleSatellitesEventArgs(BaseEventArgs):
     def __init__(self, event_type: str, satellite_list: List[SatelliteMeasurement]):
         super().__init__(event_type)
         self.satellite_list = satellite_list  # type: List[SatelliteMeasurement]
+
+
+class DummyGPS(AsyncEventSource):
+    def __init__(self, port, nursery, data=None, notification_callbacks=None, error_callbacks=None):
+        super().__init__(nursery, notification_callbacks, error_callbacks)
+        self._data = data if data is not None else {}
+        self._is_running = False
+
+    def check_connection(self):
+        return True
+
+    async def a_run_notification_loop(self):
+        if self._is_running:
+            return
+        self._is_running = True
+        while self._is_running:
+            await trio.sleep(1)
+            await self.raise_event(LocationEventArgs(GPS.LOCATION_EVENT, self._data))
+
+    def stop_notification_loop(self):
+        self._is_running = False
 
 
 # Test Suite: Minimal working example
@@ -177,7 +206,7 @@ if __name__ == "__main__":
 
     async def event_listener(source, param):
         if type(param) is LocationEventArgs:
-            print(f"New Location: {repr(param.location)}")
+            print(f"New Location: {param.data}")
         elif type(param) is VisibleSatellitesEventArgs:
             print(f"New satellite list (length {len(param.satellite_list)}): {param.satellite_list}")
 
@@ -188,7 +217,7 @@ if __name__ == "__main__":
         async with trio.open_nursery() as nursery:
             gps = GPS("/dev/serial0", nursery)
             gps.subscribe(notification_callbacks=[event_listener], error_callbacks=[error_listener])
-            nursery.start_soon(gps.a_run_update_loop)
+            nursery.start_soon(gps.a_run_notification_loop)
             nursery.start_soon(async_timer)
 
     trio.run(parent)

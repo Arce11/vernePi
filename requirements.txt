@@ -1,9 +1,13 @@
-trio
-spidev
+httpx
+trio==0.17.0
+spidev==3.5
 gpiozero==1.5.1
+rtimulib
 RPi.GPIO==0.7.0
 pigpio==1.46
 pyserial==3.4
-
+numpy==1.19.4
+Pillow==8.0.1
+sense-hat==2.2.0
 smbus~=1.1.post2
 pynmea2~=1.15.0
