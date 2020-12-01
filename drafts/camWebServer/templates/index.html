@@ -4,27 +4,98 @@
 -->
 
 <html>
-  <head>
-    <title>Proyecto VERNE prueba de Live Streaming</title>
-    <link rel="stylesheet" href='../static/style.css'/>
-    <style>
-		body {
-			text-align: center;
-		}
-    </style>
-  </head>
-  <body>
-    <h1>Streaming desde RaspberryPi</h1>
-    <h3>
-      <pre><div class="”video-responsive”">
-        <iframe src="https://www.youtube.com/embed/ZEyAs3NWH4A" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        </div>
-      <pre>
-        <!--<img src="{{ url_for('video_feed') }}" width="50%"> -->
-    </h3>
+<head>
 
-    <hr>
-	<h3> Control remoto ==> <a href="http://192.168.1.40/"class="button">Control remoto</a></h3>
-	<hr>
-    </body>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"
+            integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css"
+          integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css"
+          integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx"
+            crossorigin="anonymous"></script>
+</head>
+
+<body>
+
+<script>
+
+    function pet() {
+        // JSON con datos para enviar
+        var toSend={
+            "campo1":13,
+            "campo2":50
+
+        };
+        // Convertimos el JSON para enviarlo
+        var jsonString=JSON.stringify(toSend);
+        console.log(jsonString);
+        //enviamos el JSON
+        const url = 'http://169.254.30.57:80/control_remoto'
+        const http = new XMLHttpRequest();
+        http.open("PUT", url, true);
+        http.setRequestHeader("Content-Type", "application/json");
+        http.send(jsonString);
+
+
+
+    }
+
+</script>
+
+
+
+
+<title>Proyecto VERNE prueba de Live Streaming</title>
+<link rel="stylesheet" href='../static/style.css'/>
+<style>
+    body {
+        text-align: center;
+    }
+</style>
+
+
+<div class="container" >
+    <div class="card">
+        <div class="card-header" id="headingTwo">
+            <div class="mb-0">
+                <h1>Monitorizacion en tiempo real</h1>
+            </div>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Video en tiempo real</h5>
+                        </div>
+                        <div class="card-body">
+                            <iframe src="https://www.youtube.com/embed/ZEyAs3NWH4A" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Telecomandos</h5>
+                        </div>
+                        <div class="card-body">
+                            <button type="button" class="btn btn-primary" onclick="pet()">Control remoto</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+</body>
 </html>
