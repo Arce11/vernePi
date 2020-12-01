@@ -48,7 +48,8 @@ OJO: Instrucciones para desarrollar desde Windows y sincronizar archivos con la 
 
 --- De vuelta en la Raspberry (OJO: tanto si se está usando el montaje descrito con Pycharm+Windows como si se está clonando el repositorio directamente en la raspi) ---
 1. Se activa el entorno virtual (desde la carpeta de proyecto, o donde esté el entorno virtual): source venv/bin/activate
-1. Se instalan las dependencias: pip install -r requirements.txt
+1. Se instalan las dependencias de Python: `pip install -r requirements.txt`
+1. Se instalan dependencias del sistema: `sudo apt-get install python-dev libatlas-base-dev i2c-tools`
 
 Con todo esto y si se alinean los astros, deberíamos poder darle al típico botón de "Run" y ver la salida por consola en Windows, pero estar ejecutándolo en la raspi. Al ser por consola SSH, esto no vale si tenemos algún tipo de GUI. En ese caso, habría que en vez de darle a "Run", ir a la raspi por putty (si no hay GUI) o VNC y lanzar el script desde ahí. Los archivos se sincronizarían automáticamente, por lo que debería ser casi igual de cómodo.
   OJO: recordar para ejecutar desde la raspi el "source venv/bin/activate" y el "deactivate" para (des)activar el entorno virtual de python.
