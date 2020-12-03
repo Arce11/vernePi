@@ -9,19 +9,22 @@ import trio
 class RadioDetection(AsyncEventSource):
     TURN_DIRECTION_EVENT = "TURN_DIRECTION_EVENT"
     # --- Needs calibration ---
-    _VOLTAGE_CENTER = 1.25  # Ideal "straight ahead" value
-    _VOLTAGE_R_OFFSET = 0.08  # Margin to one side of _VOLTAGE_CENTER before deciding to turn right
-    _VOLTAGE_L_OFFSET = 0.13  # Margin to the other side of _VOLTAGE_CENTER before deciding to turn left
-    # Thresholds defined assuming a 90deg delay line on the LEFT antenna
+    _VOLTAGE_CENTER = 1.05  # Ideal "straight ahead" value
+    _VOLTAGE_R_OFFSET = 0.24  # Margin to one side of _VOLTAGE_CENTER before deciding to turn right
+    _VOLTAGE_L_OFFSET = 0.24  # Margin to the other side of _VOLTAGE_CENTER before deciding to turn left
+    # _VOLTAGE_CENTER = 0.70  # Ideal "straight ahead" value
+    # _VOLTAGE_R_OFFSET = 0.20  # Margin to one side of _VOLTAGE_CENTER before deciding to turn right
+    # _VOLTAGE_L_OFFSET = 0.20 # Margin to the other side of _VOLTAGE_CENTER before deciding to turn left
+    # Thresholds defined assuming a 90deg delay line on the RIGHT antenna
     _VOLTAGE_R_THRESHOLD = _VOLTAGE_CENTER - _VOLTAGE_R_OFFSET
     _VOLTAGE_L_THRESHOLD = _VOLTAGE_CENTER + _VOLTAGE_L_OFFSET
     # -------------------------
-    _MAX_EXPECTED_VOLTAGE = 1.55  # Ideal max. value for 90deg delay line & 12cm antenna separation @ 874MHz
+    _MAX_EXPECTED_VOLTAGE = 1.7  # Ideal max. value for 90deg delay line & 12cm antenna separation @ 874MHz
     _VOLTAGE_REFERENCE = 1.75     # 1.8V is the ideal value. 1.75V is closer to reality @ 874MHz
     # Values > _VOLTAGE_REFERENCE_THRESHOLD are assumed to represent the reference voltage, not a phase difference
     _VOLTAGE_REFERENCE_THRESHOLD = _VOLTAGE_REFERENCE - (_VOLTAGE_REFERENCE - _MAX_EXPECTED_VOLTAGE)/2
-    _CONFIDENCE_THRESHOLD_TURN = 0.08
-    _CONFIDENCE_THRESHOLD_FORWARD = 0.02
+    _CONFIDENCE_THRESHOLD_TURN = 0.12
+    _CONFIDENCE_THRESHOLD_FORWARD = 0.05
 
     _FIFO_STACK_LENGTH = 5
 
@@ -76,7 +79,7 @@ class RadioDetection(AsyncEventSource):
             confidence = (self._VOLTAGE_R_THRESHOLD - voltage) > self._CONFIDENCE_THRESHOLD_TURN
             return -1, confidence
         elif voltage > self._VOLTAGE_L_THRESHOLD:  # Need to turn left (c-clockwise)
-            confidence = (self._VOLTAGE_L_THRESHOLD + voltage) > self._CONFIDENCE_THRESHOLD_TURN
+            confidence = (voltage - self._VOLTAGE_L_THRESHOLD) > self._CONFIDENCE_THRESHOLD_TURN
             return +1, confidence
         else:
             confidence = min(voltage - self._VOLTAGE_R_THRESHOLD, self._VOLTAGE_L_THRESHOLD - voltage) > self._CONFIDENCE_THRESHOLD_FORWARD
@@ -123,13 +126,13 @@ if __name__ == "__main__":
     COUNTER = 0
 
     async def process_data(source, param):
-        print(f"## {param.angle_sign} ##\t## {param.is_confidentconfidence}")
+        print(f"## {param.angle_sign} ##\t## {param.is_confident}")
 
 
     async def parent():
         alert_ready = DigitalInputDevice(ALERT_READY_PIN, pull_up=True)
         bus = smbus.SMBus(DEVICE_BUS)
-        adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=1)
+        adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=0)
 
         async with trio.open_nursery() as nursery:
             radio_system = RadioDetection(adc, nursery)

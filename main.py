@@ -8,11 +8,11 @@ from systems.server import ServerErrorArgs
 
 
 # ---- DEBUG CONFIG -----------------------
-DEBUG_ADC = True
-DEBUG_RADIOSYSTEM = True
-DEBUG_SENSORS = False
-DEBUG_GPS = False
-DEBUG_SERVER = False
+DEBUG_ADC = False
+DEBUG_RADIOSYSTEM = False
+DEBUG_SENSORS = True
+DEBUG_GPS = True
+DEBUG_SERVER = True
 # ------------------------------------------
 # ---- SERVER CONFIG -----------------------
 ROVER_ID = 'verne'
@@ -139,7 +139,7 @@ class ControlSystem:
 
         # Radio System -------------------
         self._radio_system = RadioDetection(self._adc, self._nursery, notification_callbacks=[self.radio_listener])
-        # self._radio_system.subscribe(notification_callbacks=[radio_printer])  # DEBUG ONLY
+        self._radio_system.subscribe(notification_callbacks=[radio_printer])  # DEBUG ONLY
 
         # SenseHat ------------------------
         self._sensors = SenseHatWrapper(nursery, data=self._sensor_data)
@@ -176,7 +176,7 @@ class ControlSystem:
         elif angle_sign == 0:
             self._tractor.forward(1)
         else:
-            self._tractor.turn(angle_sign*1)
+            self._tractor.turn(angle_sign*0.8)
 
     async def server_error(self, source, param: ServerErrorArgs):
         error_code = param.event_type

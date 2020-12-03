@@ -173,7 +173,7 @@ if __name__ == "__main__":
     ALERT_READY_PIN = 24  # Pin al que está conectado el pin ALERT/READY del integrado ADS1015
     alert_ready = DigitalInputDevice(ALERT_READY_PIN, pull_up=True)
     bus = smbus.SMBus(DEVICE_BUS)
-    adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=0)
+    adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=1)
 
     counter = 1
     while True:
@@ -186,8 +186,9 @@ if __name__ == "__main__":
             time_start = time.time()
             meas = adc.read_continuous()
             time_end = time.time()
-            token = ""
+            token = "C"
 
-        print(f"{token} Tiempo: {time_end - time_start}s \t - \t Medida: {meas}")
+        # print(f"{token} Tiempo: {time_end - time_start}s \t - \t Medida: {meas}")
+        print(f"{token}: {meas}")
         time.sleep(0.1)
         counter += 1

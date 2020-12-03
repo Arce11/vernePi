@@ -28,7 +28,7 @@ async def async_pin_listener(pin_to_listen):
         in_ = c.line(pin_to_listen)
         with in_.monitor(asyncgpio.REQUEST_EVENT_FALLING_EDGE):
             async for event in in_:
-                print
+                print("asdf")
 
 
 async def parent():
