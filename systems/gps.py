@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
     async def parent():
         async with trio.open_nursery() as nursery:
-            gps = GPS("/dev/serial0", nursery)
+            gps = GPS("/dev/ttyS0", nursery)
             gps.subscribe(notification_callbacks=[event_listener], error_callbacks=[error_listener])
             nursery.start_soon(gps.a_run_notification_loop)
             nursery.start_soon(async_timer)

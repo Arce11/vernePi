@@ -170,10 +170,10 @@ if __name__ == "__main__":
     DEVICE_BUS = 1  # En RaspPi 3+, el bus I2C utilizado es el bus 1
     DEVICE_ADDRESS = 0x48  # Dirección usada por el integrado ADS1015 (si ADDR = GND => dirección 0x48)
     #   (ver dirección en RaspPi con sudo i2cdetect -y <DEVICE_BUS>)
-    ALERT_READY_PIN = 24  # Pin al que está conectado el pin ALERT/READY del integrado ADS1015
+    ALERT_READY_PIN = 26  # Pin al que está conectado el pin ALERT/READY del integrado ADS1015
     alert_ready = DigitalInputDevice(ALERT_READY_PIN, pull_up=True)
     bus = smbus.SMBus(DEVICE_BUS)
-    adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=1)
+    adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=0)
 
     counter = 1
     while True:

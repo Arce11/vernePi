@@ -7,7 +7,6 @@ import time
 puerto=8000
 
 
-
 async def timer():
 
     contador=0

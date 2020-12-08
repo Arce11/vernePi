@@ -166,37 +166,42 @@ class TractionSystem:
     :param forward_r:
         The GPIO pin that the forward input of the right motor driver chip is
         connected to. See :ref:`pin-numbering` for valid pin numbers. If this
-        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+        is :data:`None` a :exc:`GPIOPinMissing` will be raised.
 
     :type backward_r: int or str
     :param backward_r:
         The GPIO pin that the backward input of the right motor driver chip is
         connected to. See :ref:`pin-numbering` for valid pin numbers. If this
-        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+        is :data:`None` a :exc:`GPIOPinMissing` will be raised.
 
     :type enable_r: int or str
     :param forward_r:
         The GPIO pin that the enable input of the right motor driver chip is
         connected to. See :ref:`pin-numbering` for valid pin numbers. If this
-        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+        is :data:`None` a :exc:`GPIOPinMissing` will be raised.
 
     :type forward_l: int or str
     :param forward_l:
         The GPIO pin that the forward input of the left motor driver chip is
         connected to. See :ref:`pin-numbering` for valid pin numbers. If this
-        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+        is :data:`None` a :exc:`GPIOPinMissing` will be raised.
 
     :type backward_l: int or str
     :param backward_l:
         The GPIO pin that the backward input of the left motor driver chip is
         connected to. See :ref:`pin-numbering` for valid pin numbers. If this
-        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+        is :data:`None` a :exc:`GPIOPinMissing` will be raised.
 
     :type enable_l: int or str
-    :param forward_l:
+    :param enable_l:
         The GPIO pin that the enable input of the left motor driver chip is
         connected to. See :ref:`pin-numbering` for valid pin numbers. If this
-        is :data:`None` a :exc:`GPIODeviceError` will be raised.
+        is :data:`None` a :exc:`GPIOPinMissing` will be raised.
+
+    :type enable_global: int or str
+    :param enable_global:
+        GPIO pin that controlls power supply to the traction driver. If this is
+        :data:`None` a :exc:`GPIOPinMissing` will be raised.
     """
     # Scale multipliers to compensate motor thrusts. All <=1
     _R_FORWARD_SCALE = 0.69    # Scale to right-motor PWM when going forwards
@@ -215,8 +220,9 @@ class TractionSystem:
     IDLE_STATE = "IDLE"
     UNKNOWN_STATE = "UNKNOWN"
 
-    def __init__(self, forward_r=None, backward_r=None, enable_r=None, forward_l=None, backward_l=None, enable_l=None):
-        required = [forward_r, backward_r, enable_r, forward_l, backward_l, enable_l]
+    def __init__(self, forward_r=None, backward_r=None, enable_r=None, forward_l=None, backward_l=None, enable_l=None,
+                 enable_global=None):
+        required = [forward_r, backward_r, enable_r, forward_l, backward_l, enable_l, enable_global]
         if not all(p is not None for p in required):
             raise GPIOPinMissing(
                 'enable, forward and backward pins must be provided for both motors'
@@ -232,6 +238,8 @@ class TractionSystem:
             backward=backward_l,
             enable=enable_l
         )
+        self._enable = DigitalOutputDevice(enable_global)
+        self._enable.off()
 
     @property
     def is_active(self):
@@ -240,6 +248,14 @@ class TractionSystem:
         :data:`False` otherwise.
         """
         return self._right_motor.value != 0 or self._left_motor.value
+
+    @property
+    def is_enabled(self):
+        """
+        Returns :data:`True` if the global enable pin is active, and
+        :data:`False` otherwise
+        """
+        return self._enable.value == 1
 
     @property
     def state(self):
@@ -267,6 +283,13 @@ class TractionSystem:
             return self.IDLE_STATE
         else:
             return self.UNKNOWN_STATE
+
+    def toggle_enable(self, value: bool):
+        self._enable.value = 1 if value else 0
+        if self.is_enabled:
+            print("DRIVER ENABLED")
+        else:
+            print("DRIVER DISABLED")
 
     def forward(self, speed=1):
         """
@@ -339,9 +362,9 @@ if __name__ == "__main__":
     MOTOR_R_FORWARD_PIN = 17
     MOTOR_R_BACKWARD_PIN = 18
     MOTOR_R_ENABLE_PIN = 27
-    MOTOR_L_FORWARD_PIN = 23
-    MOTOR_L_BACKWARD_PIN = 24
-    MOTOR_L_ENABLE_PIN = 22
+    MOTOR_L_FORWARD_PIN = 5
+    MOTOR_L_BACKWARD_PIN = 6
+    MOTOR_L_ENABLE_PIN = 13
 
     tractor = TractionSystem(
         forward_r=MOTOR_R_FORWARD_PIN,
@@ -351,6 +374,7 @@ if __name__ == "__main__":
         backward_l=MOTOR_L_BACKWARD_PIN,
         enable_l=MOTOR_L_ENABLE_PIN
     )
+    control = DigitalOutputDevice(12).on()
 
     while True:
         action = input("Set action: ").upper()

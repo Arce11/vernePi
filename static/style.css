@@ -1,0 +1,82 @@
+
+img{
+	display: inline-block
+}
+
+.video-responsive {
+	height: 480px;
+	width: 640px;
+	overflow: hidden;
+	border: 0;
+}
+
+.arrow {
+  border: solid black;
+  border-width: 0 3px 3px 0;
+  display: inline-block;
+  padding: 3px;
+}
+
+.right {
+  transform: rotate(-45deg);
+  -webkit-transform: rotate(-45deg);
+}
+
+.left {
+  transform: rotate(135deg);
+  -webkit-transform: rotate(135deg);
+}
+
+.up {
+  transform: rotate(-135deg);
+  -webkit-transform: rotate(-135deg);
+}
+
+.down {
+  transform: rotate(45deg);
+  -webkit-transform: rotate(45deg);
+}
+
+.custom_grid {
+	display: grid;
+	grid-template-columns: 50px 50px 50px;
+
+	gap: 0;
+	grid-auto-rows: 40px;
+	grid-template-areas:
+    "a b c"
+    "d e f"
+    "g h i";
+	align-items: start;
+}
+.grid_tl {
+	grid-area: a;
+}
+.grid-t {
+  grid-area: b;
+}
+.grid-tr {
+  grid-area: c;
+}
+.grid-ml {
+  grid-area: d;
+}
+.grid-m {
+  grid-area: e;
+}
+.grid-mr {
+  grid-area: f;
+}
+.grid-bl {
+  grid-area: g;
+}
+.grid-b {
+  grid-area: h;
+}
+.grid-br {
+  grid-area: i;
+}
+
+.direction-btn {
+	width: 3em;
+}

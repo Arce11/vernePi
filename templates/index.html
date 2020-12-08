@@ -1,0 +1,149 @@
+<!--
+   index.html
+   
+-->
+
+<html lang="en">
+<head>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"
+            integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css"
+          integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css"
+          integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx"
+            crossorigin="anonymous"></script>
+
+    <title>Project VERNE</title>
+    <link rel="stylesheet" href='../static/style.css'/>
+
+
+    <script>
+
+        function sendCommand(toSend) {
+            // Convertimos el JSON para enviarlo
+            let jsonString=JSON.stringify(toSend);
+            console.log(jsonString);
+            //enviamos el JSON
+            const url = 'control_remoto'
+            const http = new XMLHttpRequest();
+            http.open("PUT", url, true);
+            http.setRequestHeader("Content-Type", "application/json");
+            http.send(jsonString);
+        }
+
+    </script>
+
+</head>
+
+
+
+<body>
+<div class="container my-4">
+    <div class="row">
+        <div class="col-md-6 my-3">
+            <iframe class="video-responsive w-100" src="/video_feed" allowfullscreen scrolling="no" frameborder="0"></iframe>
+            <!-- <iframe src="https://www.youtube.com/embed/ZEyAs3NWH4A" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>-->
+        </div>
+        <div class="col-md-6 my-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Envío de telecomandos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="my-3">
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Modo de funcionamiento
+                            </button>
+                            <div class="dropdown-menu">
+                                <btn class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'IDLE'})">En espera</btn>
+                                <div class="dropdown-divider"></div>
+
+                                <btn class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'MANUAL'})">Control manual</btn>
+                                <div class="dropdown-divider"></div>
+
+                                <btn class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'AUTOMATIC'})">Detección automática</btn>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+
+                    <div class="my-3">
+                        <div class="row">
+                            <div class="col-xl-6 my-2">
+                                <h6> Control de dirección</h6>
+                                <em> (Sólo para modo de control manual)</em>
+                            </div>
+                            <div class="col-xl-6 my-2">
+
+                                <div class="custom_grid">
+                                    <div class="grid-t">
+                                        <button class="btn btn-light direction-btn"
+                                                onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'FORWARDS'})">
+                                            <p class="arrow up"></p>
+                                        </button>
+                                    </div>
+                                    <div class="grid-ml">
+                                        <button class="btn btn-light direction-btn"
+                                                onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'LEFT'})">
+                                            <p class="arrow left"></p>
+                                        </button>
+                                    </div>
+                                    <div class="grid-m">
+                                        <button class="btn btn-light direction-btn"
+                                                onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'STOP'})">
+                                            <p> · </p>
+                                        </button>
+                                    </div>
+                                    <div class="grid-mr">
+                                        <button class="btn btn-light direction-btn"
+                                                onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'RIGHT'})">
+                                            <p class="arrow right"></p>
+                                        </button>
+                                    </div>
+                                    <div class="grid-b">
+                                        <button class="btn btn-light direction-btn"
+                                                onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'BACKWARDS'})">
+                                            <p class="arrow down"></p>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                        </div>
+
+                    </div>
+                    <div class="dropdown-divider"></div>
+
+
+                    <div class="my-3">
+                        <button class="btn btn-primary center" onclick="sendCommand({'command': 'NEW_SESSION'})"> Nueva sesión </button>
+
+                    </div>
+                </div>
+            </div>
+
+
+
+        </div>
+    </div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

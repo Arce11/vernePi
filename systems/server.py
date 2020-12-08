@@ -92,7 +92,7 @@ class Server(AsyncEventSource):
 
     async def _update_session(self, client):
         ans = await client.put(self._FULL_ADDRESS + "api/session/" + self._session_id + "/", json=self._data)
-        print(f"---> Sent session update. Status code: {ans.status_code}\n{self._data}")
+        # print(f"---> Sent session update. Status code: {ans.status_code}\n{self._data}")
         return ans.status_code
 
     def _define_new_session(self):

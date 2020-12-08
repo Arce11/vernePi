@@ -3,26 +3,33 @@ import smbus
 import trio
 from gpiozero import DigitalInputDevice
 from systems.traction_system import TractionSystem
+from systems.battery_measure import BatteryEventArgs
 from systems.gps import LocationEventArgs, VisibleSatellitesEventArgs
 from systems.server import ServerErrorArgs
+from systems.commands import CommandSystem, CommandEventArgs
 
 
 # ---- DEBUG CONFIG -----------------------
-DEBUG_ADC = False
-DEBUG_RADIOSYSTEM = False
-DEBUG_SENSORS = True
+DEBUG_ADC = True
+DEBUG_RADIOSYSTEM = True
+DEBUG_SENSORS = False
+DEBUG_BATTERY = True
 DEBUG_GPS = True
-DEBUG_SERVER = True
+DEBUG_SERVER = False
 # ------------------------------------------
 # ---- SERVER CONFIG -----------------------
 ROVER_ID = 'verne'
 SERVER_ADDRESS = '192.168.137.1'
 SERVER_PORT = 80
+COMMAND_PORT = 8000
 # ------------------------------------------
 # ---- A/D CONFIG --------------------------
 DEVICE_BUS = 1  # In Raspberry Pi 3+, bus 1 is used
 DEVICE_ADDRESS = 0x48  # ADS1015 address (if ADDR = GND -> address 0x48)
 ALERT_READY_PIN = 26  # ALERT/READY GPIO pin for ADS1015
+RADIO_CHANNEL = 0
+BATTERY_CHANNEL = 2
+CURRENT_CHANNEL = 3
 # ------------------------------------------
 # ---- TRACTION SYSTEM CONFIG --------------
 DRIVER_ENABLE_PIN = 12
@@ -48,7 +55,8 @@ MOTOR_L_ENABLE_PIN = 13
 # 3V3/5V, GND
 # TXD (GPIO 14)
 # RXD (GPIO 15)
-GPS_PORT = "/dev/serial0"
+# GPS_PORT = "/dev/serial0"  # Raspberry Pi 4
+GPS_PORT = "/dev/ttyS0"  # Raspberry Pi 3
 # ------------------------------------------
 # ---- TX/RX PINS (SPI0) -------------------
 # SPI0 MOSI (GPIO 10)
@@ -76,6 +84,10 @@ if DEBUG_GPS:
     from systems.gps import DummyGPS as GPS
 else:
     from systems.gps import GPS
+if DEBUG_BATTERY:
+    from systems.battery_measure import DummyBatteryMeasure as BatteryMeasure
+else:
+    from systems.battery_measure import BatteryMeasure
 if DEBUG_SERVER:
     from systems.server import DummyServer as Server
 else:
@@ -109,17 +121,8 @@ class ControlSystem:
     def __init__(self, nursery: trio.Nursery):
         self._nursery = nursery  # type: trio.Nursery
         self._operation_mode = ""
-        self._change_mode(self.MODE_IDLE)
         self._system_state = ""
-        self._sensor_data = {
-            'latitude': None,
-            'longitude': None,
-            'altitude': None,
-            'temperature': None,
-            'humidity': None,
-            'pressure': None,
-            'rssi': None
-        }
+        self._sensor_data = {}
 
         # Traction system ----------------
         self._tractor = TractionSystem(  # type: TractionSystem
@@ -128,37 +131,51 @@ class ControlSystem:
             enable_r=MOTOR_R_ENABLE_PIN,
             forward_l=MOTOR_L_FORWARD_PIN,
             backward_l=MOTOR_L_BACKWARD_PIN,
-            enable_l=MOTOR_L_ENABLE_PIN
+            enable_l=MOTOR_L_ENABLE_PIN,
+            enable_global=DRIVER_ENABLE_PIN
         )
-        self._tractor.idle()
 
         # ADC -----------------------------
         alert_ready = DigitalInputDevice(ALERT_READY_PIN, pull_up=True)
         bus = smbus.SMBus(DEVICE_BUS)
-        self._adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=0)  # type: ADS1015
+        self._adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=RADIO_CHANNEL)  # type: ADS1015
 
         # Radio System -------------------
         self._radio_system = RadioDetection(self._adc, self._nursery, notification_callbacks=[self.radio_listener])
-        self._radio_system.subscribe(notification_callbacks=[radio_printer])  # DEBUG ONLY
+        # self._radio_system.subscribe(notification_callbacks=[radio_printer])  # DEBUG ONLY
 
         # SenseHat ------------------------
         self._sensors = SenseHatWrapper(nursery, data=self._sensor_data)
 
         # GPS -----------------------------
-        # TODO: GPS notification callbacks
         # Lat/long/alt data is updated automatically, the satellite list is not used for now
         self._gps = GPS(GPS_PORT, nursery, data=self._sensor_data)
+
+        # BATTERY MEASUREMENTS -----------
+        self._battery = BatteryMeasure(nursery, self._adc, BATTERY_CHANNEL, data=self._sensor_data)
+        self._battery.subscribe(notification_callbacks=[self.battery_listener])
 
         # Server -------------------------
         self._server = Server(SERVER_ADDRESS, SERVER_PORT, self._sensor_data, ROVER_ID, nursery,
                               error_callbacks=[self.server_error])
 
+        # Command system -----------------
+        self._commands = CommandSystem(COMMAND_PORT, nursery, notification_callbacks=[self.command_listener])
+
+        # --------------- Start in idle mode ------------
+        self._change_mode(self.MODE_IDLE)
+
+
     async def initialize_components(self):
         self._nursery.start_soon(self._radio_system.a_run_notification_loop)
         self._nursery.start_soon(self._gps.a_run_notification_loop)
         self._nursery.start_soon(self._sensors.a_run_notification_loop)
-        self._nursery.start_soon(self.visualize_data_values)
+        self._nursery.start_soon(self._battery.a_run_notification_loop)
         self._nursery.start_soon(self._server.initialize_session, True)
+        self._nursery.start_soon(self._commands.run)
+        self._tractor.toggle_enable(True)
+
+        self._nursery.start_soon(self.visualize_data_values)  # DEBUG
         self._change_mode(self.MODE_AUTOMATIC)
 
     async def radio_listener(self, source, param):
@@ -177,6 +194,48 @@ class ControlSystem:
             self._tractor.forward(1)
         else:
             self._tractor.turn(angle_sign*0.8)
+
+    async def battery_listener(self, source, param: BatteryEventArgs):
+        if param.data['battery'] < 20:
+            self._tractor.toggle_enable(False)
+
+    async def command_listener(self, source, param: CommandEventArgs):
+        command_data = param.data
+        print(f"Received command: {command_data}")
+        if not "command" in command_data:
+            print("!!!! INVALID COMMAND")
+            return
+        if command_data['command'] == CommandSystem.DIRECTION_COMMAND:
+            if self._operation_mode != self.MODE_MANUAL:
+                return
+            if "param" not in command_data:
+                print("!!!! INVALID COMMAND")
+                return
+            if command_data["param"] == CommandSystem.DIRECTION_STOP:
+                self._tractor.stop(1)
+            elif command_data["param"] == CommandSystem.DIRECTION_LEFT:
+                self._tractor.turn(0.8)
+            elif command_data["param"] == CommandSystem.DIRECTION_RIGHT:
+                self._tractor.turn(-0.8)
+            elif command_data["param"] == CommandSystem.DIRECTION_FORWARDS:
+                self._tractor.forward(1)
+            elif command_data["param"] == CommandSystem.DIRECTION_BACKWARDS:
+                self._tractor.backward(1)
+            else:
+                print("!!!! INVALID DIRECTION")
+            print(f"NEW MANUAL DIRECTION SET: {self._tractor.state}")
+
+        elif command_data['command'] == CommandSystem.MODE_COMMAND:
+            if "param" not in command_data:
+                print("!!!! INVALID COMMAND")
+                return
+            self._change_mode(command_data["param"])
+
+        elif command_data['command'] == CommandSystem.SESSION_COMMAND:
+            self._nursery.start_soon(self._server.initialize_session, True)
+        else:
+            print("!!!! UNKNOWN COMMAND")
+
 
     async def server_error(self, source, param: ServerErrorArgs):
         error_code = param.event_type
@@ -201,14 +260,24 @@ class ControlSystem:
     def _change_mode(self, mode):
         if mode == self.MODE_IDLE:  # Nothing to set up for idle mode (for now at least)
             self._operation_mode = self.MODE_IDLE
+            self._system_state = None
+            self._tractor.idle()
         elif mode == self.MODE_AUTOMATIC:
             self._operation_mode = self.MODE_AUTOMATIC
             # TODO: Implement RSSI measurements, and set STATE to REACHED initially (^^^)
             self._system_state = self.SYSTEM_AUTO_FOLLOWING
             self._tractor.idle()
+        elif mode == self.MODE_MANUAL:
+            self._operation_mode = self.MODE_MANUAL
+            self._system_state = None
+            self._tractor.idle()
 
         else:
-            raise ValueError(f"Invalid or unimplemented operation mode: {mode}")
+            print(f"!!!! Invalid or unimplemented operation mode: {mode}")
+
+        print(f"### NEW MODE: {self._operation_mode}")
+        self._sensor_data['session_state'] = self._operation_mode
+        self._sensor_data['session_substate'] = self._system_state
 
     async def visualize_data_values(self):
         """
