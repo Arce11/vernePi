@@ -7,15 +7,17 @@ from systems.battery_measure import BatteryEventArgs
 from systems.gps import LocationEventArgs, VisibleSatellitesEventArgs
 from systems.server import ServerErrorArgs
 from systems.commands import CommandSystem, CommandEventArgs
+from systems.receptor import ReceptorEventArgs
 
 
 # ---- DEBUG CONFIG -----------------------
-DEBUG_ADC = True
-DEBUG_RADIOSYSTEM = True
+DEBUG_ADC = False
+DEBUG_RADIOSYSTEM = False
 DEBUG_SENSORS = False
-DEBUG_BATTERY = True
-DEBUG_GPS = True
-DEBUG_SERVER = False
+DEBUG_BATTERY = False
+DEBUG_GPS = False
+DEBUG_TRANSCEIVER = False
+DEBUG_SERVER = True
 # ------------------------------------------
 # ---- SERVER CONFIG -----------------------
 ROVER_ID = 'verne'
@@ -28,8 +30,8 @@ DEVICE_BUS = 1  # In Raspberry Pi 3+, bus 1 is used
 DEVICE_ADDRESS = 0x48  # ADS1015 address (if ADDR = GND -> address 0x48)
 ALERT_READY_PIN = 26  # ALERT/READY GPIO pin for ADS1015
 RADIO_CHANNEL = 0
-BATTERY_CHANNEL = 2
-CURRENT_CHANNEL = 3
+BATTERY_CHANNEL = 3
+CURRENT_CHANNEL = 1
 # ------------------------------------------
 # ---- TRACTION SYSTEM CONFIG --------------
 DRIVER_ENABLE_PIN = 12
@@ -64,7 +66,10 @@ GPS_PORT = "/dev/ttyS0"  # Raspberry Pi 3
 # SPI0 SCLK (GPIO 11)
 # SPI0 CE1 (GPIO 7)
 # SPI0 CE0 (GPIO 8) ---- ??????
-RX_INTERRUPTION_PIN = 26
+CE_PIN = 7  # SPI CE 1
+RX_INTERRUPTION_PIN = 16
+TX_DEVICE = 1
+
 # ------------------------------------------
 
 # --------- DEBUG IMPORTS ------------------
@@ -84,6 +89,10 @@ if DEBUG_GPS:
     from systems.gps import DummyGPS as GPS
 else:
     from systems.gps import GPS
+if DEBUG_TRANSCEIVER:
+    from systems.receptor import DummyReceptorSystem as ReceptorSystem
+else:
+    from systems.receptor import ReceptorSystem
 if DEBUG_BATTERY:
     from systems.battery_measure import DummyBatteryMeasure as BatteryMeasure
 else:
@@ -99,7 +108,7 @@ class ControlSystem:
     # ---- OPERATION MODES -----------------
     MODE_IDLE = "IDLE"
     MODE_AUTOMATIC = "AUTOMATIC"
-    MODE_MANUAL = "MANUAL"  # TODO: Implement manual control
+    MODE_MANUAL = "MANUAL"
     MODE_TEST = "TEST"  # TODO: Implement testing modes
     # --------------------------------------
     # ---- SYSTEM STATES -------------------
@@ -108,6 +117,9 @@ class ControlSystem:
     SYSTEM_AUTO_REACHED = "REACHED"
     # Missing extra states for undefined modes
     # --------------------------------------
+    # ---- RADIO RSSI THRESHOLDS -----------
+    RSSI_STOP_THRESHOLD = -78
+    RSSI_FOLLOW_THRESHOLD = -85
     # ---- TRACTION TRANSLATION ------------
     # Used in AUTOMATIC mode to transform angle values into traction states
     TRACTION_TRANSLATOR = {  # Translates from angle signs received from radio system into traction states
@@ -151,6 +163,10 @@ class ControlSystem:
         # Lat/long/alt data is updated automatically, the satellite list is not used for now
         self._gps = GPS(GPS_PORT, nursery, data=self._sensor_data)
 
+        # Transceiver --------------------
+        self._transceiver = ReceptorSystem(RX_INTERRUPTION_PIN, TX_DEVICE, nursery,
+                                           notification_callbacks=[self.transceiver_listener], data=self._sensor_data)
+
         # BATTERY MEASUREMENTS -----------
         self._battery = BatteryMeasure(nursery, self._adc, BATTERY_CHANNEL, data=self._sensor_data)
         self._battery.subscribe(notification_callbacks=[self.battery_listener])
@@ -171,6 +187,7 @@ class ControlSystem:
         self._nursery.start_soon(self._gps.a_run_notification_loop)
         self._nursery.start_soon(self._sensors.a_run_notification_loop)
         self._nursery.start_soon(self._battery.a_run_notification_loop)
+        self._nursery.start_soon(self._transceiver.a_run_notification_loop)
         self._nursery.start_soon(self._server.initialize_session, True)
         self._nursery.start_soon(self._commands.run)
         self._tractor.toggle_enable(True)
@@ -198,6 +215,18 @@ class ControlSystem:
     async def battery_listener(self, source, param: BatteryEventArgs):
         if param.data['battery'] < 20:
             self._tractor.toggle_enable(False)
+
+    async def transceiver_listener(self, source, param: ReceptorEventArgs):
+        if self._operation_mode != self.MODE_AUTOMATIC:
+            return
+        rssi = param.data['rssi']
+        if self._system_state == self.SYSTEM_AUTO_REACHED and rssi < self.RSSI_FOLLOW_THRESHOLD:
+            self._system_state = self.SYSTEM_AUTO_FOLLOWING
+            self._sensor_data['substate'] = self.SYSTEM_AUTO_FOLLOWING
+        elif self._system_state == self.SYSTEM_AUTO_FOLLOWING and rssi > self.RSSI_STOP_THRESHOLD:
+            self._system_state = self.SYSTEM_AUTO_REACHED
+            self._sensor_data['substate'] = self.SYSTEM_AUTO_REACHED
+            self._tractor.idle()
 
     async def command_listener(self, source, param: CommandEventArgs):
         command_data = param.data

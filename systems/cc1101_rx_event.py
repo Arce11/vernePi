@@ -1,7 +1,7 @@
 import threading
-from time import sleep
+from time import sleep, time
 from gpiozero import DigitalInputDevice
-from pycc1101 import TICC1101
+from systems.pycc1101 import TICC1101
 
 '''
     1byte CC1101 TRANSMITTER example.
@@ -21,14 +21,14 @@ from pycc1101 import TICC1101
         (Preferences > Raspberry Pi Configuration > Interfaces > SPI > Enabled > Reboot)
 '''
 
-GD0_PIN = 25    # Pin 22 (interrupt line)
+GD0_PIN = 21    # Pin 22 (interrupt line)
                 # When the Rx FIFO is full, the GD0 pin is set to high level
-CARRIER_FREQ = 433
+CARRIER_FREQ = 868
 
 # Dictionary where the SPI constants used are stored
 SPI_conf = {
     "bus":      0,  # SPI bus used = 0
-    "device":   0,  # SPI device used = 0 (up to 2 devices can be used by each bus)
+    "device":   1,  # SPI device used = 0 (up to 2 devices can be used by each bus)
     "MOSI":     10, # Master Output/Slave Input (D19)
     "MISO":     9,  # Master Input/Slave Output (D21)
     "SCLK":     11, # SPI clock (D23)
@@ -104,6 +104,7 @@ radio.setDefaultValues()                        # initialization of the CC1101 r
 print("Initialization complete!")
 radio.setSyncWord("C70A")                       # setting sync word... (default value = "FAFA")
 radio.setCarrierFrequency(CARRIER_FREQ)         # setting carrier frequency... (433 MHz or 868 MHz)
+radio.setChannel(0x1F)
 radio._writeSingleByte(radio.PKTCTRL1, 0x04)    # disable Address Check
 radio.sidle()                                   # enter the transceiver into IDLE mode
 radio._setRXState()                             # enter the transceiver into RX mode
@@ -122,6 +123,9 @@ interrupt.when_activated = on_activated
 #   on_activated is triggered every time the interrupt line is activated
 
 while True:
-    print("RSSI: {} dBm".format(radio._getRSSI(radio.getRSSI())))
+    start = time()
+    rssi = radio._getRSSI(radio.getRSSI())
+    end = time()
+    print(f"RSSI: {rssi} dBm  ---  Time: {end-start}")
     #    the main thread can access to the RSSI register every time it needs
     sleep(0.25)

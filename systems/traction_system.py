@@ -372,7 +372,8 @@ if __name__ == "__main__":
         enable_r=MOTOR_R_ENABLE_PIN,
         forward_l=MOTOR_L_FORWARD_PIN,
         backward_l=MOTOR_L_BACKWARD_PIN,
-        enable_l=MOTOR_L_ENABLE_PIN
+        enable_l=MOTOR_L_ENABLE_PIN,
+        enable_global=1
     )
     control = DigitalOutputDevice(12).on()
 
