@@ -1,6 +1,7 @@
 from systems.event_source import AsyncEventSource, BaseEventArgs
 from systems.pycc1101 import TICC1101
 from gpiozero import DigitalInputDevice
+from threading import Lock
 import trio
 
 '''
@@ -59,7 +60,9 @@ class ReceptorSystem(AsyncEventSource):
 
     def __init__(self, interrupt_pin, device_num: int, nursery, data=None, notification_callbacks=None, error_callbacks=None):
         super().__init__(nursery, notification_callbacks, error_callbacks)
-        self._data = data if data is not None else {'rssi': None}
+        self._data = data if data is not None else {'rssi': None, 'message': None}
+        self._last_message = None
+        self._last_message_lock = Lock()
         self._interrupt = DigitalInputDevice(interrupt_pin)
         if device_num == 0:
             ce_pin = 8
@@ -97,6 +100,16 @@ class ReceptorSystem(AsyncEventSource):
 
     def on_interrupt(self):
         print("GOT AN INTERRUPT!!")
+        # while there_is_data_in_transceiver:
+        #     Do stuff
+        #     blah blah blah
+        #     local_message = ... # Store message in a LOCAL variable
+        local_message = "asdfasdfa"
+
+        # These are the only necessary multithreading lines here
+        self._last_message_lock.acquire()
+        self._last_message = local_message
+        self._last_message_lock.release()
 
     def print_number_plate(self):
         print("CC1101_PARTNUM: {}".format(self._radio._readSingleByte(self._radio.PARTNUM)))  # Chip part number
@@ -119,6 +132,10 @@ class ReceptorSystem(AsyncEventSource):
         while self._is_running:
             rssi = self._radio._getRSSI(self._radio.getRSSI())
             self._data['rssi'] = rssi
+            # Only update message if it is not being overwritten EXACTLY at the same time (very rare...)
+            if self._last_message_lock.acquire(blocking=False):
+                self._data['message'] = self._last_message
+                self._last_message_lock.release()
             await self.raise_event(ReceptorEventArgs(self.RSSI_EVENT, self._data))
             await trio.sleep(0.5)
 

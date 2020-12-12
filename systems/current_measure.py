@@ -57,6 +57,7 @@ class DummyCurrentMeasure(AsyncEventSource):
         while self._running:
             await trio.sleep(1)
             #self._data['motor_current'] = self._reported_data[counter % len(self._reported_data)]
+            self._data['motor_current'] = 0
             await self.raise_event(CurrentEventArgs(CurrentMeasure.CURRENT_EVENT, self._data))
             # counter += 1
 
