@@ -4,6 +4,7 @@ import trio
 from gpiozero import DigitalInputDevice
 from systems.traction_system import TractionSystem
 from systems.battery_measure import BatteryEventArgs
+from systems.current_measure import CurrentEventArgs
 from systems.gps import LocationEventArgs, VisibleSatellitesEventArgs
 from systems.server import ServerErrorArgs
 from systems.commands import CommandSystem, CommandEventArgs
@@ -11,13 +12,14 @@ from systems.receptor import ReceptorEventArgs
 
 
 # ---- DEBUG CONFIG -----------------------
-DEBUG_ADC = False
-DEBUG_RADIOSYSTEM = False
-DEBUG_SENSORS = False
-DEBUG_BATTERY = False
-DEBUG_GPS = False
-DEBUG_TRANSCEIVER = False
-DEBUG_SERVER = True
+DEBUG_ADC = True
+DEBUG_RADIOSYSTEM = True
+DEBUG_SENSORS = True
+DEBUG_BATTERY = True
+DEBUG_CURRENT = True
+DEBUG_GPS = True
+DEBUG_TRANSCEIVER = True
+DEBUG_SERVER = False
 # ------------------------------------------
 # ---- SERVER CONFIG -----------------------
 ROVER_ID = 'verne'
@@ -97,6 +99,10 @@ if DEBUG_BATTERY:
     from systems.battery_measure import DummyBatteryMeasure as BatteryMeasure
 else:
     from systems.battery_measure import BatteryMeasure
+if DEBUG_CURRENT:
+    from systems.current_measure import DummyCurrentMeasure as CurrentMeasure
+else:
+    from systems.current_measure import CurrentMeasure
 if DEBUG_SERVER:
     from systems.server import DummyServer as Server
 else:
@@ -109,17 +115,25 @@ class ControlSystem:
     MODE_IDLE = "IDLE"
     MODE_AUTOMATIC = "AUTOMATIC"
     MODE_MANUAL = "MANUAL"
-    MODE_TEST = "TEST"  # TODO: Implement testing modes
+    MODE_BATTERY_SAVER = "BATTERY_SAVER"
+    MODE_CURRENT_PROTECTION = "CURRENT_PROTECTION"
     # --------------------------------------
     # ---- SYSTEM STATES -------------------
     # Specific state within one mode
     SYSTEM_AUTO_FOLLOWING = "FOLLOWING"
     SYSTEM_AUTO_REACHED = "REACHED"
+    SYSTEM_AUTO_NOTFOUND = "NOT_FOUND"
     # Missing extra states for undefined modes
     # --------------------------------------
     # ---- RADIO RSSI THRESHOLDS -----------
-    RSSI_STOP_THRESHOLD = -78
+    RSSI_STOP_THRESHOLD = -79
     RSSI_FOLLOW_THRESHOLD = -85
+    RSSI_GIVEUP_THRESHOLD = -105
+    # --------------------------------------
+    # ---- BATTERY & CURRENT THRESHOLDS ----
+    BATTERY_SAVER_THRESHOLD = 10 # %
+    CURRENT_PROTECTION_THRESHOLD = 1.4  # A, max motor current
+    # --------------------------------------
     # ---- TRACTION TRANSLATION ------------
     # Used in AUTOMATIC mode to transform angle values into traction states
     TRACTION_TRANSLATOR = {  # Translates from angle signs received from radio system into traction states
@@ -132,9 +146,23 @@ class ControlSystem:
 
     def __init__(self, nursery: trio.Nursery):
         self._nursery = nursery  # type: trio.Nursery
-        self._operation_mode = ""
-        self._system_state = ""
-        self._sensor_data = {}
+        self._operation_mode = None
+        self._system_state = None
+        self._sensor_data = {
+            'temperature': None,
+            'pressure': None,
+            'humidity': None,
+            'num_satellites': None,
+            'latitude': None,
+            'longitude': None,
+            'altitude': None,
+            'message': None,
+            'rssi': None,
+            'session_state': None,
+            'session_substate': None,
+            'battery': None,
+            'motor_current': None
+        }
 
         # Traction system ----------------
         self._tractor = TractionSystem(  # type: TractionSystem
@@ -167,9 +195,11 @@ class ControlSystem:
         self._transceiver = ReceptorSystem(RX_INTERRUPTION_PIN, TX_DEVICE, nursery,
                                            notification_callbacks=[self.transceiver_listener], data=self._sensor_data)
 
-        # BATTERY MEASUREMENTS -----------
+        # Battery & current measurements -----------
         self._battery = BatteryMeasure(nursery, self._adc, BATTERY_CHANNEL, data=self._sensor_data)
         self._battery.subscribe(notification_callbacks=[self.battery_listener])
+        self._current_meas = CurrentMeasure(nursery, self._adc, CURRENT_CHANNEL, data=self._sensor_data)
+        self._current_meas.subscribe(notification_callbacks=[self.current_listener])
 
         # Server -------------------------
         self._server = Server(SERVER_ADDRESS, SERVER_PORT, self._sensor_data, ROVER_ID, nursery,
@@ -187,6 +217,7 @@ class ControlSystem:
         self._nursery.start_soon(self._gps.a_run_notification_loop)
         self._nursery.start_soon(self._sensors.a_run_notification_loop)
         self._nursery.start_soon(self._battery.a_run_notification_loop)
+        self._nursery.start_soon(self._current_meas.a_run_notification_loop)
         self._nursery.start_soon(self._transceiver.a_run_notification_loop)
         self._nursery.start_soon(self._server.initialize_session, True)
         self._nursery.start_soon(self._commands.run)
@@ -213,19 +244,27 @@ class ControlSystem:
             self._tractor.turn(angle_sign*0.8)
 
     async def battery_listener(self, source, param: BatteryEventArgs):
-        if param.data['battery'] < 20:
-            self._tractor.toggle_enable(False)
+        if param.data['battery'] < self.BATTERY_SAVER_THRESHOLD and self._operation_mode != self.MODE_BATTERY_SAVER:
+            self._change_mode(self.MODE_BATTERY_SAVER)
+
+    async def current_listener(self, source, param: CurrentEventArgs):
+        if param.data['motor_current'] > self.CURRENT_PROTECTION_THRESHOLD and self._operation_mode != self.MODE_CURRENT_PROTECTION:
+            previous_mode = self._operation_mode
+            self._change_mode(self.MODE_CURRENT_PROTECTION)
+            self._nursery.start_soon(schedule, self._change_mode, 3, previous_mode)
 
     async def transceiver_listener(self, source, param: ReceptorEventArgs):
         if self._operation_mode != self.MODE_AUTOMATIC:
             return
         rssi = param.data['rssi']
-        if self._system_state == self.SYSTEM_AUTO_REACHED and rssi < self.RSSI_FOLLOW_THRESHOLD:
-            self._system_state = self.SYSTEM_AUTO_FOLLOWING
-            self._sensor_data['substate'] = self.SYSTEM_AUTO_FOLLOWING
-        elif self._system_state == self.SYSTEM_AUTO_FOLLOWING and rssi > self.RSSI_STOP_THRESHOLD:
-            self._system_state = self.SYSTEM_AUTO_REACHED
-            self._sensor_data['substate'] = self.SYSTEM_AUTO_REACHED
+        if rssi < self.RSSI_GIVEUP_THRESHOLD:
+            self._change_state(self.SYSTEM_AUTO_NOTFOUND)
+            self._tractor.idle()
+        elif rssi < self.RSSI_FOLLOW_THRESHOLD:
+            self._change_state(self.SYSTEM_AUTO_FOLLOWING)
+        elif rssi > self.RSSI_STOP_THRESHOLD \
+                or (rssi > self.RSSI_FOLLOW_THRESHOLD and self._system_state == self.SYSTEM_AUTO_NOTFOUND):
+            self._change_state(self.SYSTEM_AUTO_REACHED)
             self._tractor.idle()
 
     async def command_listener(self, source, param: CommandEventArgs):
@@ -287,26 +326,44 @@ class ControlSystem:
 
 
     def _change_mode(self, mode):
+        if self._operation_mode == self.MODE_BATTERY_SAVER:
+            print("Could not change mode - Currently in battery saver")
+            return
         if mode == self.MODE_IDLE:  # Nothing to set up for idle mode (for now at least)
             self._operation_mode = self.MODE_IDLE
-            self._system_state = None
+            self._change_state(None)
             self._tractor.idle()
+            self._tractor.toggle_enable(False)
         elif mode == self.MODE_AUTOMATIC:
             self._operation_mode = self.MODE_AUTOMATIC
-            # TODO: Implement RSSI measurements, and set STATE to REACHED initially (^^^)
-            self._system_state = self.SYSTEM_AUTO_FOLLOWING
+            self._change_state(self.SYSTEM_AUTO_NOTFOUND)
             self._tractor.idle()
+            self._tractor.toggle_enable(True)
         elif mode == self.MODE_MANUAL:
             self._operation_mode = self.MODE_MANUAL
-            self._system_state = None
+            self._change_state(None)
             self._tractor.idle()
+            self._tractor.toggle_enable(True)
+        elif mode == self.MODE_CURRENT_PROTECTION:
+            self._operation_mode = self.MODE_CURRENT_PROTECTION
+            self._change_state(None)
+            self._tractor.idle()
+            self._tractor.toggle_enable(False)
+        elif mode == self.MODE_BATTERY_SAVER:
+            self._operation_mode = self.MODE_MANUAL
+            self._change_state(None)
+            self._tractor.idle()
+            self._tractor.toggle_enable(False)
 
         else:
             print(f"!!!! Invalid or unimplemented operation mode: {mode}")
 
         print(f"### NEW MODE: {self._operation_mode}")
         self._sensor_data['session_state'] = self._operation_mode
-        self._sensor_data['session_substate'] = self._system_state
+
+    def _change_state(self, new_state):
+        self._system_state = new_state
+        self._sensor_data['session_substate'] = new_state
 
     async def visualize_data_values(self):
         """
@@ -318,6 +375,11 @@ class ControlSystem:
             print(f"### {counter}s ###  Data: {self._sensor_data}")
             counter += 1
             await trio.sleep(1)
+
+
+async def schedule(function, scheduled_time, *args, **kwargs):
+    await trio.sleep(scheduled_time)
+    function(*args, **kwargs)
 
 
 async def radio_printer(source, param):

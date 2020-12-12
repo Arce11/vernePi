@@ -22,7 +22,8 @@ class GPS(AsyncEventSource):
         try:
             self._connection = serial.Serial(port, 9600, timeout=5.0)
             self._a_connection = trio.wrap_file(self._connection)
-            self._data = data if data is not None else {'latitude': None, 'longitude': None, 'altitude': None}
+            self._data = data if data is not None else {'latitude': None, 'longitude': None, 'altitude': None,
+                                                        'num_satellites': None}
         except serial.SerialException:
             print("ERROR initializing GPS module")
             raise
@@ -115,6 +116,7 @@ class GPS(AsyncEventSource):
             if current_msg == total_msg:
                 self.visible_satellites = self._new_satellites
                 self._new_satellites = []
+                self._data['num_satellites'] = len(self.visible_satellites)
                 await self.raise_event(VisibleSatellitesEventArgs(GPS.SATELLITE_LIST_EVENT, self.visible_satellites))
 
         except ValueError as e:

@@ -71,7 +71,7 @@ class RadioDetection(AsyncEventSource):
         # Assumption: 90deg phase line placed after LEFT antenna
         # Therefore: Voltage > _VOLTAGE_CENTER  ->  Need to turn "left" (counter-clockwise)
         voltage = sum(self._fifo_stack) / len(self._fifo_stack)
-        # return voltage, True  # For debugging only
+        #return voltage, True  # For debugging only
 
         if voltage > self._MAX_EXPECTED_VOLTAGE:  # Very close to reference voltage -> no beacon detected
             return None, True

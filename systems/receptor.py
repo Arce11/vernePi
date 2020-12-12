@@ -140,6 +140,7 @@ class DummyReceptorSystem(AsyncEventSource):
     def __init__(self, interrupt_pin, device_num: int, nursery, data=None, notification_callbacks=None, error_callbacks=None):
         super().__init__(nursery, notification_callbacks, error_callbacks)
         self._data = data if data is not None else {'rssi': -60}
+        self._data['rssi'] = -90
         self._is_running = False
 
     async def a_run_notification_loop(self):
