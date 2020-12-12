@@ -73,27 +73,39 @@ class Server(AsyncEventSource):
         self._continue_running = False
 
     async def _register_rover(self, client):
-        msg = {'rover_id': self._ROVER_ID, 'address': self._ROVER_ADDRESS}
-        ans = await client.post(self._FULL_ADDRESS + "api/rover/", json=msg)
-        print(f"Sent rover registration. Status code: {ans.status_code}")
-        return ans.status_code
+        try:
+            msg = {'rover_id': self._ROVER_ID, 'address': self._ROVER_ADDRESS}
+            ans = await client.post(self._FULL_ADDRESS + "api/rover/", json=msg)
+            print(f"Sent rover registration. Status code: {ans.status_code}")
+            return ans.status_code
+        except httpx.RemoteProtocolError as e:
+            print(e)
 
     async def _register_session(self, client):
-        msg = {'session_id': self._session_id, 'rover_id': self._ROVER_ID}
-        ans = await client.post(self._FULL_ADDRESS + "api/session/", json=msg)
-        print(f"Sent session registration. Status code: {ans.status_code}")
-        return ans.status_code
+        try:
+            msg = {'session_id': self._session_id, 'rover_id': self._ROVER_ID}
+            ans = await client.post(self._FULL_ADDRESS + "api/session/", json=msg)
+            print(f"Sent session registration. Status code: {ans.status_code}")
+            return ans.status_code
+        except httpx.RemoteProtocolError as e:
+            print(e)
 
     async def _update_rover(self, client):
-        msg = {'rover_id': self._ROVER_ID, 'last_session': self._session_id, 'address': self._ROVER_ADDRESS}
-        ans = await client.put(self._FULL_ADDRESS + "api/rover/" + self._ROVER_ID + "/", json=msg)
-        print(f"Sent rover update. Status code: {ans.status_code}")
-        return ans.status_code
+        try:
+            msg = {'rover_id': self._ROVER_ID, 'last_session': self._session_id, 'address': self._ROVER_ADDRESS}
+            ans = await client.put(self._FULL_ADDRESS + "api/rover/" + self._ROVER_ID + "/", json=msg)
+            print(f"Sent rover update. Status code: {ans.status_code}")
+            return ans.status_code
+        except httpx.RemoteProtocolError as e:
+            print(e)
 
     async def _update_session(self, client):
-        ans = await client.put(self._FULL_ADDRESS + "api/session/" + self._session_id + "/", json=self._data)
-        # print(f"---> Sent session update. Status code: {ans.status_code}\n{self._data}")
-        return ans.status_code
+        try:
+            ans = await client.put(self._FULL_ADDRESS + "api/session/" + self._session_id + "/", json=self._data)
+            # print(f"---> Sent session update. Status code: {ans.status_code}\n{self._data}")
+            return ans.status_code
+        except httpx.RemoteProtocolError as e:
+            print(e)
 
     def _define_new_session(self):
         self._session_id = generate_session_id()
