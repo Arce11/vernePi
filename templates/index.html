@@ -27,7 +27,7 @@
             let jsonString=JSON.stringify(toSend);
             console.log(jsonString);
             //enviamos el JSON
-            const url = 'control_remoto'
+            const url = 'control_remoto';
             const http = new XMLHttpRequest();
             http.open("PUT", url, true);
             http.setRequestHeader("Content-Type", "application/json");
