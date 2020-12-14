@@ -27,7 +27,7 @@
             let jsonString=JSON.stringify(toSend);
             console.log(jsonString);
             //enviamos el JSON
-            const url = 'control_remoto'
+            const url = 'control_remoto';
             const http = new XMLHttpRequest();
             http.open("PUT", url, true);
             http.setRequestHeader("Content-Type", "application/json");
@@ -59,13 +59,13 @@
                                 Modo de funcionamiento
                             </button>
                             <div class="dropdown-menu">
-                                <btn class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'IDLE'})">En espera</btn>
+                                <button class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'IDLE'})">En espera</button>
                                 <div class="dropdown-divider"></div>
 
-                                <btn class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'MANUAL'})">Control manual</btn>
+                                <button class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'MANUAL'})">Control manual</button>
                                 <div class="dropdown-divider"></div>
 
-                                <btn class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'AUTOMATIC'})">Detección automática</btn>
+                                <button class="dropdown-item" onclick="sendCommand({'command': 'SELECT_MODE', 'param': 'AUTOMATIC'})">Detección automática</button>
                             </div>
                         </div>
                     </div>
@@ -83,31 +83,31 @@
                                     <div class="grid-t">
                                         <button class="btn btn-light direction-btn"
                                                 onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'FORWARDS'})">
-                                            <p class="arrow up"></p>
+                                            <span class="mt-2 arrow up"></span>
                                         </button>
                                     </div>
                                     <div class="grid-ml">
                                         <button class="btn btn-light direction-btn"
                                                 onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'LEFT'})">
-                                            <p class="arrow left"></p>
+                                            <span class="my-2 arrow left"></span>
                                         </button>
                                     </div>
                                     <div class="grid-m">
                                         <button class="btn btn-light direction-btn"
                                                 onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'STOP'})">
-                                            <p> · </p>
+                                            <span> · </span>
                                         </button>
                                     </div>
                                     <div class="grid-mr">
                                         <button class="btn btn-light direction-btn"
                                                 onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'RIGHT'})">
-                                            <p class="arrow right"></p>
+                                            <span class="my-2 arrow right"></span>
                                         </button>
                                     </div>
                                     <div class="grid-b">
                                         <button class="btn btn-light direction-btn"
                                                 onclick="sendCommand({'command': 'SET_DIRECTION', 'param': 'BACKWARDS'})">
-                                            <p class="arrow down"></p>
+                                            <span class="mb-2 arrow down"></span>
                                         </button>
                                     </div>
                                 </div>
