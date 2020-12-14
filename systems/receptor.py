@@ -3,6 +3,7 @@ from systems.pycc1101 import TICC1101
 from gpiozero import DigitalInputDevice
 from threading import Lock
 import trio
+import datetime
 
 '''
     Pinout Connection:
@@ -100,11 +101,18 @@ class ReceptorSystem(AsyncEventSource):
 
     def on_interrupt(self):
         print("GOT AN INTERRUPT!!")
-        # while there_is_data_in_transceiver:
-        #     Do stuff
-        #     blah blah blah
-        #     local_message = ... # Store message in a LOCAL variable
-        local_message = "asdfasdfa"
+        received_data = self._radio.recvData()  # receiving data...
+        if type(received_data) != type([]):  # Sometimes recvData does not return a list...
+            received_data = []
+        self._radio.sidle()  # enters the transceiver into IDLE mode
+        self._radio._setRXState()  # enters the transceiver into RX mode
+        # print("Operation mode: {}".format(radio_state(radio)))
+        local_message = ''.join([chr(code) for code in received_data])
+        local_message = local_message[0:len(local_message)-1] if len(local_message)>0 else ""
+
+
+        local_message = f"{datetime.datetime.now().strftime('%c')} -- {local_message}"
+        print(f"### RECIBIDO: {local_message}")
 
         # These are the only necessary multithreading lines here
         self._last_message_lock.acquire()

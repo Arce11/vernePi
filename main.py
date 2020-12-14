@@ -12,18 +12,18 @@ from systems.receptor import ReceptorEventArgs
 
 
 # ---- DEBUG CONFIG -----------------------
-DEBUG_ADC = True
-DEBUG_RADIOSYSTEM = True
-DEBUG_SENSORS = True
-DEBUG_BATTERY = True
-DEBUG_CURRENT = True
-DEBUG_GPS = True
-DEBUG_TRANSCEIVER = True
+DEBUG_ADC = False
+DEBUG_RADIOSYSTEM = False
+DEBUG_SENSORS = False
+DEBUG_BATTERY = False
+DEBUG_CURRENT = False
+DEBUG_GPS = False
+DEBUG_TRANSCEIVER = False
 DEBUG_SERVER = False
 # ------------------------------------------
 # ---- SERVER CONFIG -----------------------
 ROVER_ID = 'verne'
-SERVER_ADDRESS = '192.168.137.1'
+SERVER_ADDRESS = 'ec2-13-53-130-185.eu-north-1.compute.amazonaws.com'
 SERVER_PORT = 80
 COMMAND_PORT = 8000
 # ------------------------------------------
@@ -126,13 +126,16 @@ class ControlSystem:
     # Missing extra states for undefined modes
     # --------------------------------------
     # ---- RADIO RSSI THRESHOLDS -----------
-    RSSI_STOP_THRESHOLD = -79
-    RSSI_FOLLOW_THRESHOLD = -85
-    RSSI_GIVEUP_THRESHOLD = -105
+    # RSSI_STOP_THRESHOLD = -79
+    # RSSI_FOLLOW_THRESHOLD = -85
+    # RSSI_GIVEUP_THRESHOLD = -105
+    RSSI_STOP_THRESHOLD = -64
+    RSSI_FOLLOW_THRESHOLD = -78
+    RSSI_GIVEUP_THRESHOLD = -140
     # --------------------------------------
     # ---- BATTERY & CURRENT THRESHOLDS ----
     BATTERY_SAVER_THRESHOLD = 10 # %
-    CURRENT_PROTECTION_THRESHOLD = 1.4  # A, max motor current
+    CURRENT_PROTECTION_THRESHOLD = 0.7  # A, max motor current
     # --------------------------------------
     # ---- TRACTION TRANSLATION ------------
     # Used in AUTOMATIC mode to transform angle values into traction states
@@ -152,6 +155,7 @@ class ControlSystem:
             'temperature': None,
             'pressure': None,
             'humidity': None,
+            'slope': None,
             'num_satellites': None,
             'latitude': None,
             'longitude': None,
@@ -182,7 +186,7 @@ class ControlSystem:
 
         # Radio System -------------------
         self._radio_system = RadioDetection(self._adc, self._nursery, notification_callbacks=[self.radio_listener])
-        # self._radio_system.subscribe(notification_callbacks=[radio_printer])  # DEBUG ONLY
+        self._radio_system.subscribe(notification_callbacks=[radio_printer])  # DEBUG ONLY
 
         # SenseHat ------------------------
         self._sensors = SenseHatWrapper(nursery, data=self._sensor_data)
@@ -350,7 +354,7 @@ class ControlSystem:
             self._tractor.idle()
             self._tractor.toggle_enable(False)
         elif mode == self.MODE_BATTERY_SAVER:
-            self._operation_mode = self.MODE_MANUAL
+            self._operation_mode = self.MODE_BATTERY_SAVER
             self._change_state(None)
             self._tractor.idle()
             self._tractor.toggle_enable(False)

@@ -8,15 +8,18 @@ class SenseHatWrapper(AsyncEventSource):
     Simple wrapper around sense hat sensor checks
     """
     SENSOR_EVENT = "SENSOR_EVENT"
+    ROLL_BASE_DEGREES = 180
 
     def __init__(self, nursery, data=None, notification_callbacks=None, error_callbacks=None):
         super().__init__(nursery, notification_callbacks, error_callbacks)
         try:
             self.sense_hat = SenseHat()
+            self.sense_hat.set_imu_config(False, True, True)
         except:
             print("ERROR INITIALIZING SENSE HAT")
             raise
-        self._data = data if data is not None else {'temperature': None, 'pressure': None, 'humidity': None}
+        self._data = data if data is not None else {'temperature': None, 'pressure': None, 'humidity': None,
+                                                    'slope': None}
         self._running = False
 
     async def a_run_notification_loop(self):
@@ -30,6 +33,9 @@ class SenseHatWrapper(AsyncEventSource):
             self._data["pressure"] = self.sense_hat.get_pressure()
             await trio.sleep(0)
             self._data["humidity"] = self.sense_hat.get_humidity() * 81/121  # TODO: Check humidity correction
+            await trio.sleep(0)
+            raw_slope = self.sense_hat.accel['roll']
+            self._data["slope"] = -raw_slope + 180
             await self.raise_event(SensorEventArgs(self.SENSOR_EVENT, self._data.copy()))
 
     def stop_notification_loop(self):

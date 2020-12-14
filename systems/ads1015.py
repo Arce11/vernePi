@@ -173,7 +173,7 @@ if __name__ == "__main__":
     ALERT_READY_PIN = 26  # Pin al que está conectado el pin ALERT/READY del integrado ADS1015
     alert_ready = DigitalInputDevice(ALERT_READY_PIN, pull_up=True)
     bus = smbus.SMBus(DEVICE_BUS)
-    adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=1)
+    adc = ADS1015(bus, DEVICE_ADDRESS, alert_ready, channel=0)
 
     counter = 1
     while True:

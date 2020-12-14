@@ -23,6 +23,7 @@ class RadioDetection(AsyncEventSource):
     _VOLTAGE_REFERENCE = 1.75     # 1.8V is the ideal value. 1.75V is closer to reality @ 874MHz
     # Values > _VOLTAGE_REFERENCE_THRESHOLD are assumed to represent the reference voltage, not a phase difference
     _VOLTAGE_REFERENCE_THRESHOLD = _VOLTAGE_REFERENCE - (_VOLTAGE_REFERENCE - _MAX_EXPECTED_VOLTAGE)/2
+    # _CONFIDENCE_THRESHOLD_TURN = 0.12
     _CONFIDENCE_THRESHOLD_TURN = 0.12
     _CONFIDENCE_THRESHOLD_FORWARD = 0.05
 
@@ -71,6 +72,7 @@ class RadioDetection(AsyncEventSource):
         # Assumption: 90deg phase line placed after LEFT antenna
         # Therefore: Voltage > _VOLTAGE_CENTER  ->  Need to turn "left" (counter-clockwise)
         voltage = sum(self._fifo_stack) / len(self._fifo_stack)
+        print(f"Voltage: {voltage}")
         #return voltage, True  # For debugging only
 
         if voltage > self._MAX_EXPECTED_VOLTAGE:  # Very close to reference voltage -> no beacon detected

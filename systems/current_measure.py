@@ -30,7 +30,7 @@ class CurrentMeasure(AsyncEventSource):
             fifo_stack[1:len(fifo_stack)] = fifo_stack[0:(len(fifo_stack)-1)]
             fifo_stack[0] = self._adc.read_single_shot(channel=self._CHANNEL)
             mean_voltage = sum(fifo_stack)/len(fifo_stack)
-            self._data['motor_current'] = (mean_voltage - self._ZERO_SENSOR_VOLTAGE) * self._SENSITIVITY
+            self._data['motor_current'] = (mean_voltage - self._ZERO_SENSOR_VOLTAGE) / self._SENSITIVITY
             await self.raise_event(CurrentEventArgs(self.CURRENT_EVENT, self._data))
 
     def stop_notification_loop(self):
